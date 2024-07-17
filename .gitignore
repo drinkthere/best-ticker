@@ -1,0 +1,9 @@
+vendor/
+.idea
+config/*.json
+bin/bt
+bin/logs
+logs/
+okx
+*.DS_Store 
+*.env
