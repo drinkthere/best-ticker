@@ -12,6 +12,12 @@ type GlobalContext struct {
 
 	OkxFuturesBboComposite container.OrderBookComposite
 	OkxSpotBboComposite    container.OrderBookComposite
+
+	OkxFuturesBooksComposite container.OrderBookComposite
+	OkxSpotBooksComposite    container.OrderBookComposite
+
+	OkxFuturesBooks5Composite container.OrderBookComposite
+	OkxSpotBooks5Composite    container.OrderBookComposite
 }
 
 func (context *GlobalContext) Init(globalConfig *config.Config) {
@@ -42,11 +48,27 @@ func (context *GlobalContext) initTickerComposite() {
 }
 
 func (context *GlobalContext) initOrderBookComposite() {
-	okxFuturesComposite := container.OrderBookComposite{}
-	okxFuturesComposite.Init(config.OkxExchange, config.FuturesInstrument, config.BooksBboTbtChannel)
-	context.OkxFuturesBboComposite = okxFuturesComposite
+	okxFuturesBboComposite := container.OrderBookComposite{}
+	okxFuturesBboComposite.Init(config.OkxExchange, config.FuturesInstrument, config.BboTbtChannel)
+	context.OkxFuturesBboComposite = okxFuturesBboComposite
 
-	okxSpotComposite := container.OrderBookComposite{}
-	okxSpotComposite.Init(config.OkxExchange, config.SpotInstrument, config.BooksBboTbtChannel)
-	context.OkxSpotBboComposite = okxSpotComposite
+	okxSpotBboComposite := container.OrderBookComposite{}
+	okxSpotBboComposite.Init(config.OkxExchange, config.SpotInstrument, config.BboTbtChannel)
+	context.OkxSpotBboComposite = okxSpotBboComposite
+
+	okxFuturesBooksComposite := container.OrderBookComposite{}
+	okxFuturesBooksComposite.Init(config.OkxExchange, config.FuturesInstrument, config.BooksChannel)
+	context.OkxFuturesBooksComposite = okxFuturesBooksComposite
+
+	okxSpotBooksComposite := container.OrderBookComposite{}
+	okxSpotBooksComposite.Init(config.OkxExchange, config.SpotInstrument, config.BooksChannel)
+	context.OkxSpotBooksComposite = okxSpotBooksComposite
+
+	okxFuturesBooks5Composite := container.OrderBookComposite{}
+	okxFuturesBooks5Composite.Init(config.OkxExchange, config.FuturesInstrument, config.Books5Channel)
+	context.OkxFuturesBooks5Composite = okxFuturesBooks5Composite
+
+	okxSpotBooks5Composite := container.OrderBookComposite{}
+	okxSpotBooks5Composite.Init(config.OkxExchange, config.SpotInstrument, config.Books5Channel)
+	context.OkxSpotBooks5Composite = okxSpotBooks5Composite
 }

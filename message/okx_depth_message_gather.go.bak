@@ -1,0 +1,192 @@
+package message
+
+import (
+	"best-ticker/config"
+	"best-ticker/container"
+	"best-ticker/context"
+	"best-ticker/utils/logger"
+	"github.com/drinkthere/okx/events/public"
+	"github.com/drinkthere/okx/models/market"
+	"math/rand"
+)
+
+func convertToObMsg(instType config.InstrumentType, channel config.Channel, instID string,
+	action string, msg *market.OrderBookWs) container.OrderBookMsg {
+	return container.OrderBookMsg{
+		Exchange:     config.OkxExchange,
+		InstType:     instType,
+		Channel:      channel,
+		InstID:       instID,
+		Action:       action,
+		OrderBookMsg: msg,
+	}
+}
+
+func convertDepthToOkxTickerMessage(instType config.InstrumentType, instID string, channel config.Channel,
+	bestBid market.OrderBookEntity, bestAsk market.OrderBookEntity, obUpdateTime int64) container.TickerWrapper {
+	return container.TickerWrapper{
+		Exchange:     config.OkxExchange,
+		InstType:     instType,
+		InstID:       instID,
+		Channel:      channel,
+		AskPrice:     bestAsk.DepthPrice,
+		AskSize:      bestAsk.Size,
+		BidPrice:     bestBid.DepthPrice,
+		BidSize:      bestBid.Size,
+		UpdateTimeMs: obUpdateTime,
+	}
+}
+
+func StartGatherOkxFuturesDepthWs(depthChan chan *public.OrderBook, globalContext *context.GlobalContext) {
+
+	//r := rand.New(rand.NewSource(2))
+	go func() {
+		defer func() {
+			logger.Warn("[GatherFDepth] Okx Futures Ticker Gather Exited.")
+		}()
+		for {
+			s := <-depthChan
+			for _, b := range s.Books {
+				// update orderbook
+				chRaw, _ := s.Arg.Get("channel")
+				ch := config.Channel(chRaw.(string))
+				instIDRaw, _ := s.Arg.Get("instId")
+				instID := instIDRaw.(string)
+				action := s.Action
+
+				instType := config.FuturesInstrument
+				obMsg := convertToObMsg(instType, ch, instID, action, b)
+				result := updateOrderBook(instType, ch, obMsg, globalContext)
+				if !result {
+
+				}
+				checkToUpdateTicker(instID, instType, ch, globalContext)
+				//if r.Int31n(10000) < 10000 {
+				//	newT := getTicker(instID, instType, globalContext)
+				//	logger.Info("[GatherFDepth] Okx Ticker is %+v", newT)
+				//}
+			}
+		}
+	}()
+
+	logger.Info("[GatherFTicker] Start Gather Okx Futures Depth")
+}
+
+func StartGatherOkxSpotDepthWs(depthChan chan *public.OrderBook, globalContext *context.GlobalContext) {
+
+	r := rand.New(rand.NewSource(2))
+	go func() {
+		defer func() {
+			logger.Warn("[GatherSDepth] Okx Spot Depth Gather Exited.")
+		}()
+		for {
+			s := <-depthChan
+			for _, b := range s.Books {
+				// update orderbook
+				chRaw, _ := s.Arg.Get("channel")
+				ch := config.Channel(chRaw.(string))
+				instIDRaw, _ := s.Arg.Get("instId")
+				instID := instIDRaw.(string)
+				action := s.Action
+
+				instType := config.SpotInstrument
+				obMsg := convertToObMsg(instType, ch, instID, action, b)
+				updateOrderBook(instType, ch, obMsg, globalContext)
+				checkToUpdateTicker(instID, instType, ch, globalContext)
+				if r.Int31n(10000) < 10000 {
+					newT := getTicker(instID, instType, globalContext)
+					logger.Info("[GatherSDepth] Okx Ticker is %+v", newT)
+				}
+			}
+		}
+	}()
+
+	logger.Info("[GatherSDepth] Start Gather Okx Spot Depth")
+}
+
+func checkToUpdateTicker(instID string, instType config.InstrumentType, ch config.Channel, globalContext *context.GlobalContext) {
+	// b.TS > ticker.TS && ticker changed, update ticker
+	ticker := getTicker(instID, instType, globalContext)
+	orderBook := getOrderBook(instID, instType, ch, globalContext)
+	if orderBook == nil || ticker == nil {
+		logger.Info("orderBook is nil or ticker is nil")
+		return
+	}
+
+	obUpdateTime := orderBook.UpdateTime()
+	if obUpdateTime > ticker.UpdateTimeMs {
+		bestBid := orderBook.BestBid()
+		bestAsk := orderBook.BestAsk()
+		if bestBid.DepthPrice != ticker.AskPrice || bestAsk.DepthPrice != ticker.BidPrice {
+			tickerMsg := convertDepthToOkxTickerMessage(config.FuturesInstrument, instID, ch, bestBid, bestAsk, obUpdateTime)
+			result := updateTicker(instType, tickerMsg, globalContext)
+			if result {
+				// todo 更新zmq消息
+
+			}
+		}
+	}
+}
+
+func getTicker(instID string, instType config.InstrumentType, globalContext *context.GlobalContext) *container.TickerWrapper {
+	var ticker *container.TickerWrapper
+	if instType == config.FuturesInstrument {
+		ticker = globalContext.OkxFuturesTickerComposite.GetTicker(instID)
+	} else {
+		ticker = globalContext.OkxSpotTickerComposite.GetTicker(instID)
+	}
+	return ticker
+}
+
+func updateTicker(instType config.InstrumentType, tickerMsg container.TickerWrapper, globalContext *context.GlobalContext) bool {
+	var result bool
+	if instType == config.FuturesInstrument {
+		result = globalContext.OkxFuturesTickerComposite.UpdateTicker(tickerMsg)
+	} else {
+		result = globalContext.OkxSpotTickerComposite.UpdateTicker(tickerMsg)
+	}
+	return result
+}
+
+func getOrderBook(instID string, instType config.InstrumentType, ch config.Channel, globalContext *context.GlobalContext) *container.OrderBook {
+
+	var orderBook *container.OrderBook
+	if instType == config.FuturesInstrument {
+		if ch == config.BboTbtChannel {
+			orderBook = globalContext.OkxFuturesBboComposite.GetOrderBook(instID)
+		} else if ch == config.BooksChannel {
+			orderBook = globalContext.OkxFuturesBooksComposite.GetOrderBook(instID)
+		} else if ch == config.Books5Channel {
+			orderBook = globalContext.OkxFuturesBooks5Composite.GetOrderBook(instID)
+		}
+	} else {
+		if ch == config.BboTbtChannel {
+			orderBook = globalContext.OkxSpotBboComposite.GetOrderBook(instID)
+		} else if ch == config.BooksChannel {
+			orderBook = globalContext.OkxSpotBooksComposite.GetOrderBook(instID)
+		} else if ch == config.Books5Channel {
+			orderBook = globalContext.OkxSpotBooks5Composite.GetOrderBook(instID)
+		}
+	}
+	return orderBook
+}
+
+func updateOrderBook(instType config.InstrumentType, ch config.Channel, obMsg container.OrderBookMsg, globalContext *context.GlobalContext) bool {
+	if instType == config.FuturesInstrument {
+		if ch == config.BboTbtChannel {
+			return globalContext.OkxFuturesBboComposite.UpdateOrderBook(obMsg)
+		} else if ch == config.BooksChannel {
+			return globalContext.OkxFuturesBooksComposite.UpdateOrderBook(obMsg)
+		} else if ch == config.Books5Channel {
+			return globalContext.OkxFuturesBooks5Composite.UpdateOrderBook(obMsg)
+		}
+	} else {
+		if ch == config.BboTbtChannel {
+			return globalContext.OkxSpotBboComposite.UpdateOrderBook(obMsg)
+		} else if ch == config.BooksChannel {
+			return globalContext.OkxSpotBooksComposite.UpdateOrderBook(obMsg)
+		} else if ch == config.Books5Channel {
+			return globalContext.OkxSpotBooks5Composite.UpdateOrderBook(obMsg)
+		}
+	}
+}

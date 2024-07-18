@@ -11,7 +11,7 @@ func startDepthMessage() {
 	okxSpotDepthChan := make(chan *public.OrderBook)
 	message.StartOkxDepthWs(&globalConfig, &globalContext, okxFuturesDepthChan, okxSpotDepthChan)
 
-	// 开启Okx行情数据收集整理
-	message.StartGatherOkxFuturesDepthWs(okxFuturesDepthChan, &globalContext)
-	message.StartGatherOkxSpotDepthWs(okxSpotDepthChan, &globalContext)
+	//// 开启Okx行情数据收集整理
+	//message.StartGatherOkxFuturesDepthWs(okxFuturesDepthChan, &globalContext)
+	//message.StartGatherOkxSpotDepthWs(okxSpotDepthChan, &globalContext)
 }

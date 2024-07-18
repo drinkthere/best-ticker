@@ -2,82 +2,213 @@ package container
 
 import (
 	"best-ticker/config"
-	"container/heap"
+	"best-ticker/utils/logger"
 	"github.com/drinkthere/okx/models/market"
+	"hash/crc32"
+	"sort"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 )
 
-type PriceLevelHeap []market.OrderBookEntity
-
-func (h PriceLevelHeap) Len() int           { return len(h) }
-func (h PriceLevelHeap) Less(i, j int) bool { return h[i].DepthPrice < h[j].DepthPrice }
-func (h PriceLevelHeap) Swap(i, j int)      { h[i], h[j] = h[j], h[i] }
-
-func (h *PriceLevelHeap) Push(x interface{}) {
-	*h = append(*h, x.(market.OrderBookEntity))
-}
-
-func (h *PriceLevelHeap) Pop() interface{} {
-	old := *h
-	n := len(old)
-	x := old[n-1]
-	*h = old[0 : n-1]
-	return x
-}
-
 type OrderBook struct {
-	bids                    PriceLevelHeap
-	asks                    PriceLevelHeap
-	removeCrossedLevels     bool
-	receivedInitialSnapshot bool
-	mu                      *sync.RWMutex
-	updateTimeMs            int64
+	bids         []*market.OrderBookEntity
+	asks         []*market.OrderBookEntity
+	mu           *sync.RWMutex
+	updateTimeMs int64
 }
 
 func NewOrderBook() *OrderBook {
 	return &OrderBook{
-		bids:                    make(PriceLevelHeap, 0),
-		asks:                    make(PriceLevelHeap, 0),
-		removeCrossedLevels:     true,
-		receivedInitialSnapshot: false,
-		mu:                      &sync.RWMutex{},
-		updateTimeMs:            0,
+		bids:         make([]*market.OrderBookEntity, 0),
+		asks:         make([]*market.OrderBookEntity, 0),
+		mu:           &sync.RWMutex{},
+		updateTimeMs: 0,
 	}
 }
 
-func (ob *OrderBook) Update(isSnapshot bool, bookChange *market.OrderBookWs) bool {
-	if isSnapshot {
-		ob.bids = ob.bids[:0]
-		ob.asks = ob.asks[:0]
-		ob.receivedInitialSnapshot = true
+func (ob *OrderBook) update(channel config.Channel, action string, bookChange *market.OrderBookWs) bool {
+	result := true
+	if action == "snapshot" {
+		ob.reset(bookChange)
+		return result
+	} else if action == "update" {
+		result = ob.handleOrderBookMessage(bookChange)
+	} else if channel == config.Books5Channel || channel == config.BboTbtChannel {
+		ob.reset(bookChange)
+		return result
+	}
+	return result
+}
+
+func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool {
+	logger.Info("prevSeqId=%d, seqId=%d", bookChange.PrevSeqID, bookChange.SeqID)
+	result := true
+	bids := parseOrders(bookChange.Bids, config.DescSortType)
+	asks := parseOrders(bookChange.Asks, config.AscSortType)
+	if len(bids) == 0 && len(asks) == 0 {
+		// data not update, just update seqID
+		ob.mu.Lock()
+		ob.updateTimeMs = time.Time(bookChange.TS).UnixMilli()
+		ob.mu.Unlock()
+		return result
 	}
 
-	if ob.receivedInitialSnapshot {
-		applyPriceLevelChanges(&ob.asks, bookChange.Asks)
-		applyPriceLevelChanges(&ob.bids, bookChange.Bids)
+	ob.handleDeltas(bids, asks)
+	checkSum := bookChange.Checksum
+	if checkSum != 0 {
+		ob.mu.RLock()
+		maxItems := 25
+		var payloadArray []string
+		for i := 0; i < maxItems; i++ {
+			if i < len(ob.bids) {
+				payloadArray = append(payloadArray, strconv.FormatFloat(ob.bids[i].DepthPrice, 'f', -1, 64))
+				payloadArray = append(payloadArray, strconv.FormatFloat(ob.bids[i].Size, 'f', -1, 64))
+			}
+			if i < len(asks) {
+				payloadArray = append(payloadArray, strconv.FormatFloat(ob.asks[i].DepthPrice, 'f', -1, 64))
+				payloadArray = append(payloadArray, strconv.FormatFloat(ob.asks[i].Size, 'f', -1, 64))
+			}
+		}
+
+		payload := strings.Join(payloadArray, ":")
+		//logger.Info("checksum payload is %s", payload)
+		localChecksum := crc32.ChecksumIEEE([]byte(payload))
+
+		if localChecksum != checkSum {
+			//logger.Error("[Depth Update] Checksum does not match. localChecksum(%d)!=checksum(%d)", localChecksum, checkSum)
+			result = false
+		}
+		ob.mu.RUnlock()
+		if !result {
+			return result
+		}
 	}
 
+	ob.mu.Lock()
 	ob.updateTimeMs = time.Time(bookChange.TS).UnixMilli()
-	return true
+	ob.mu.Unlock()
+	return result
 }
 
-func (ob *OrderBook) BestBid() *market.OrderBookEntity {
+func (ob *OrderBook) handleDeltas(bids []*market.OrderBookEntity, asks []*market.OrderBookEntity) {
+	ob.mu.Lock()
+	defer ob.mu.Unlock()
+	//for _, obid := range ob.bids {
+	//	logger.Info("obid=%f, size=%f", obid.DepthPrice, obid.Size)
+	//}
+	//for _, oask := range ob.asks {
+	//	logger.Info("oask=%f, size=%f", oask.DepthPrice, oask.Size)
+	//}
+	//for _, bid := range bids {
+	//	logger.Info("bid=%f, size=%f", bid.DepthPrice, bid.Size)
+	//}
+	//for _, ask := range asks {
+	//	logger.Info("ask=%f, size=%f", ask.DepthPrice, ask.Size)
+	//}
+
+	// 处理 bids 变更
+	for _, newBid := range bids {
+		found := false
+		for i, bid := range ob.bids {
+			if bid.DepthPrice == newBid.DepthPrice {
+				// 找到了相同价格的 bid
+				found = true
+				if newBid.Size == 0 {
+					// 删除此深度
+					//logger.Info("Delete bid price=%f, size=%f", bid.DepthPrice, bid.Size)
+					ob.bids = append(ob.bids[:i], ob.bids[i+1:]...)
+				} else {
+					// 更新 Size
+					bid.Size = newBid.Size
+				}
+				break
+			} else if bid.DepthPrice < newBid.DepthPrice {
+				// 在正确的位置插入新的 bid
+				ob.bids = append(ob.bids[:i], append([]*market.OrderBookEntity{newBid}, ob.bids[i:]...)...)
+				found = true
+				break
+			}
+		}
+		if !found && newBid.Size != 0 {
+			// 未找到相同价格的 bid,追加到末尾
+			ob.bids = append(ob.bids, newBid)
+		}
+	}
+
+	// 处理 asks 变更
+	for _, newAsk := range asks {
+		found := false
+		for i, ask := range ob.asks {
+			if ask.DepthPrice == newAsk.DepthPrice {
+				// 找到了相同价格的 ask
+				found = true
+				if newAsk.Size == 0 {
+					// 删除此深度
+					//logger.Info("Delete ask price=%f, size=%f", ask.DepthPrice, ask.Size)
+					ob.asks = append(ob.asks[:i], ob.asks[i+1:]...)
+				} else {
+					// 更新 Size
+					ask.Size = newAsk.Size
+				}
+				break
+			} else if ask.DepthPrice > newAsk.DepthPrice {
+				// 在正确的位置插入新的 ask
+				ob.asks = append(ob.asks[:i], append([]*market.OrderBookEntity{newAsk}, ob.asks[i:]...)...)
+				found = true
+				break
+			}
+		}
+		if !found && newAsk.Size != 0 {
+			// 未找到相同价格的 ask,追加到末尾
+			ob.asks = append(ob.asks, newAsk)
+		}
+	}
+}
+
+func (ob *OrderBook) reset(bookChange *market.OrderBookWs) {
+	ob.mu.Lock()
+	defer ob.mu.Unlock()
+	ob.bids = parseOrders(bookChange.Bids, config.DescSortType)
+	ob.asks = parseOrders(bookChange.Asks, config.AscSortType)
+	ob.updateTimeMs = time.Time(bookChange.TS).UnixMilli()
+}
+
+func parseOrders(orders []*market.OrderBookEntity, sortType config.SortType) []*market.OrderBookEntity {
+	if len(orders) == 0 {
+		return orders
+	}
+	sort.Slice(orders, func(i, j int) bool {
+		switch sortType {
+		case config.AscSortType:
+			return orders[i].DepthPrice < orders[j].DepthPrice
+		case config.DescSortType:
+			return orders[i].DepthPrice > orders[j].DepthPrice
+		default:
+			// 处理无效的 sortType
+			return false
+		}
+	})
+	return orders
+}
+
+func (ob *OrderBook) BestBid() market.OrderBookEntity {
 	ob.mu.RLock()
 	defer ob.mu.RUnlock()
 	if len(ob.bids) == 0 {
-		return nil
+		return market.OrderBookEntity{}
 	}
-	return &ob.bids[0]
+	return *ob.bids[0]
 }
 
-func (ob *OrderBook) BestAsk() *market.OrderBookEntity {
+func (ob *OrderBook) BestAsk() market.OrderBookEntity {
 	ob.mu.RLock()
 	defer ob.mu.RUnlock()
 	if len(ob.asks) == 0 {
-		return nil
+		return market.OrderBookEntity{}
 	}
-	return &ob.asks[0]
+	return *ob.asks[0]
 }
 
 func (ob *OrderBook) UpdateTime() int64 {
@@ -86,41 +217,12 @@ func (ob *OrderBook) UpdateTime() int64 {
 	return ob.updateTimeMs
 }
 
-func applyPriceLevelChanges(tree *PriceLevelHeap, priceLevelChanges []*market.OrderBookEntity) {
-	for _, priceLevel := range priceLevelChanges {
-		index, found := findPriceLevel(*tree, priceLevel.DepthPrice)
-		if found && priceLevel.OrderNumbers == 0 {
-			*tree = removeFromHeap(*tree, index)
-		} else if found {
-			(*tree)[index].OrderNumbers = priceLevel.OrderNumbers
-			heap.Fix(tree, index)
-		} else if priceLevel.OrderNumbers != 0 {
-			*tree = append(*tree, *priceLevel)
-			heap.Init(tree)
-		}
-	}
-}
-
-func findPriceLevel(heap PriceLevelHeap, price float64) (int, bool) {
-	for i, level := range heap {
-		if level.DepthPrice == price {
-			return i, true
-		}
-	}
-	return -1, false
-}
-
-func removeFromHeap(heap PriceLevelHeap, index int) PriceLevelHeap {
-	heap[index] = heap[len(heap)-1]
-	return heap[:len(heap)-1]
-}
-
 type OrderBookMsg struct {
 	Exchange     config.Exchange
 	InstType     config.InstrumentType
 	Channel      config.Channel
 	InstID       string
-	IsSnapshot   bool
+	Action       string
 	OrderBookMsg *market.OrderBookWs
 }
 
@@ -160,15 +262,14 @@ func (composite *OrderBookComposite) UpdateOrderBook(message OrderBookMsg) bool 
 	if composite.Exchange != message.Exchange || composite.InstType != message.InstType || composite.Channel != message.Channel {
 		return updateResult
 	}
-
 	orderBook, has := composite.orderBookWrappers[message.InstID]
 
 	if !has {
 		ob := NewOrderBook()
-		updateResult = ob.Update(message.IsSnapshot, message.OrderBookMsg)
+		updateResult = ob.update(composite.Channel, message.Action, message.OrderBookMsg)
 		composite.orderBookWrappers[message.InstID] = *ob
 	} else {
-		updateResult = orderBook.Update(message.IsSnapshot, message.OrderBookMsg)
+		updateResult = orderBook.update(composite.Channel, message.Action, message.OrderBookMsg)
 		composite.orderBookWrappers[message.InstID] = orderBook
 	}
 	return updateResult

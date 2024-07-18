@@ -15,3 +15,5 @@ require (
 	github.com/pkg/errors v0.9.1 // indirect
 	go.uber.org/multierr v1.10.0 // indirect
 )
+
+replace github.com/drinkthere/okx v1.0.27 => ./okx
