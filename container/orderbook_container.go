@@ -43,22 +43,21 @@ func (ob *OrderBook) update(channel config.Channel, action string, bookChange *m
 }
 
 func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool {
-	logger.Info("prevSeqId=%d, seqId=%d", bookChange.PrevSeqID, bookChange.SeqID)
-	result := true
+	ob.mu.Lock()
+	defer ob.mu.Unlock()
+
+	// logger.Info("prevSeqId=%d, seqId=%d", bookChange.PrevSeqID, bookChange.SeqID)
 	bids := parseOrders(bookChange.Bids, config.DescSortType)
 	asks := parseOrders(bookChange.Asks, config.AscSortType)
 	if len(bids) == 0 && len(asks) == 0 {
 		// data not update, just update seqID
-		ob.mu.Lock()
 		ob.updateTimeMs = time.Time(bookChange.TS).UnixMilli()
-		ob.mu.Unlock()
-		return result
+		return true
 	}
 
 	ob.handleDeltas(bids, asks)
 	checkSum := bookChange.Checksum
 	if checkSum != 0 {
-		ob.mu.RLock()
 		maxItems := 25
 		var payloadArray []string
 		for i := 0; i < maxItems; i++ {
@@ -66,7 +65,7 @@ func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool
 				payloadArray = append(payloadArray, strconv.FormatFloat(ob.bids[i].DepthPrice, 'f', -1, 64))
 				payloadArray = append(payloadArray, strconv.FormatFloat(ob.bids[i].Size, 'f', -1, 64))
 			}
-			if i < len(asks) {
+			if i < len(ob.asks) {
 				payloadArray = append(payloadArray, strconv.FormatFloat(ob.asks[i].DepthPrice, 'f', -1, 64))
 				payloadArray = append(payloadArray, strconv.FormatFloat(ob.asks[i].Size, 'f', -1, 64))
 			}
@@ -76,25 +75,17 @@ func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool
 		//logger.Info("checksum payload is %s", payload)
 		localChecksum := crc32.ChecksumIEEE([]byte(payload))
 
-		if localChecksum != checkSum {
-			//logger.Error("[Depth Update] Checksum does not match. localChecksum(%d)!=checksum(%d)", localChecksum, checkSum)
-			result = false
-		}
-		ob.mu.RUnlock()
-		if !result {
-			return result
+		if int32(localChecksum) != checkSum {
+			logger.Error("[Depth Update] Checksum does not match. localChecksum(%d)!=checksum(%d)", localChecksum, checkSum)
+			return false
 		}
 	}
 
-	ob.mu.Lock()
 	ob.updateTimeMs = time.Time(bookChange.TS).UnixMilli()
-	ob.mu.Unlock()
-	return result
+	return true
 }
 
 func (ob *OrderBook) handleDeltas(bids []*market.OrderBookEntity, asks []*market.OrderBookEntity) {
-	ob.mu.Lock()
-	defer ob.mu.Unlock()
 	//for _, obid := range ob.bids {
 	//	logger.Info("obid=%f, size=%f", obid.DepthPrice, obid.Size)
 	//}
