@@ -15,9 +15,9 @@ func StartOkxTickerWs(cfg *config.Config, globalContext *context.GlobalContext,
 	okxFuturesTickerChan chan *public.Tickers, okxSpotTickerChan chan *public.Tickers) {
 
 	// 循环不同的IP，监听对应的tickers
-	startOkxFuturesTickers(&cfg.OkxConf, globalContext, false, "", okxFuturesTickerChan)
+	startOkxFuturesTickers(&cfg.OkxConfig, globalContext, false, "", okxFuturesTickerChan)
 	logger.Info("[FTickerWebSocket] Start Listen Okx Futures Tickers")
-	startOkxSpotTickers(&cfg.OkxConf, globalContext, false, "", okxSpotTickerChan)
+	startOkxSpotTickers(&cfg.OkxConfig, globalContext, false, "", okxSpotTickerChan)
 	logger.Info("[STickerWebSocket] Start Listen Okx Spot Tickers")
 }
 
