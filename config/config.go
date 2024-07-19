@@ -23,7 +23,7 @@ type Config struct {
 	LogPath  string
 
 	// Okx配置
-	OkxConf OkxConfig
+	OkxConfig OkxConfig
 
 	Sources []Source // 公网IP
 	InstIDs []string // 要套利的交易对

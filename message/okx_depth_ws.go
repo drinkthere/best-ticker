@@ -18,10 +18,10 @@ import (
 
 func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext) {
 	// 循环不同的IP，监听不同的depth channel
-	startOkxFuturesPublicDepths(&cfg.OkxConf, globalContext, false, "", config.Books50L2TbtChannel)
-	logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
+	//startOkxFuturesPublicDepths(&cfg.OkxConfig, globalContext, false, "", config.BboTbtChannel)
+	//logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
 
-	startOkxFuturesPrivateDepths(&cfg.OkxConf, globalContext, false, "", config.Books50L2TbtChannel)
+	startOkxFuturesPrivateDepths(&cfg.OkxConfig, globalContext, false, "", config.Books50L2TbtChannel)
 	logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
 
 	//startOkxSpotDepths(&cfg.OkxConf, globalContext, false, "", okxSpotTickerChan)
