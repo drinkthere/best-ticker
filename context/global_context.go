@@ -13,11 +13,11 @@ type GlobalContext struct {
 	OkxFuturesBboComposite container.OrderBookComposite
 	OkxSpotBboComposite    container.OrderBookComposite
 
-	OkxFuturesBooksComposite container.OrderBookComposite
-	OkxSpotBooksComposite    container.OrderBookComposite
+	OkxFuturesBooks50L2Composite container.OrderBookComposite
+	OkxSpotBooks50L2Composite    container.OrderBookComposite
 
-	OkxFuturesBooks5Composite container.OrderBookComposite
-	OkxSpotBooks5Composite    container.OrderBookComposite
+	OkxFuturesL2Composite container.OrderBookComposite
+	OkxSpotL2Composite    container.OrderBookComposite
 }
 
 func (context *GlobalContext) Init(globalConfig *config.Config) {
@@ -56,19 +56,19 @@ func (context *GlobalContext) initOrderBookComposite() {
 	okxSpotBboComposite.Init(config.OkxExchange, config.SpotInstrument, config.BboTbtChannel)
 	context.OkxSpotBboComposite = okxSpotBboComposite
 
-	okxFuturesBooksComposite := container.OrderBookComposite{}
-	okxFuturesBooksComposite.Init(config.OkxExchange, config.FuturesInstrument, config.BooksChannel)
-	context.OkxFuturesBooksComposite = okxFuturesBooksComposite
+	okxFuturesBooks50L2Composite := container.OrderBookComposite{}
+	okxFuturesBooks50L2Composite.Init(config.OkxExchange, config.FuturesInstrument, config.Books50L2TbtChannel)
+	context.OkxFuturesBooks50L2Composite = okxFuturesBooks50L2Composite
 
-	okxSpotBooksComposite := container.OrderBookComposite{}
-	okxSpotBooksComposite.Init(config.OkxExchange, config.SpotInstrument, config.BooksChannel)
-	context.OkxSpotBooksComposite = okxSpotBooksComposite
+	okxSpotBooks50L2Composite := container.OrderBookComposite{}
+	okxSpotBooks50L2Composite.Init(config.OkxExchange, config.SpotInstrument, config.Books50L2TbtChannel)
+	context.OkxSpotBooks50L2Composite = okxSpotBooks50L2Composite
 
-	okxFuturesBooks5Composite := container.OrderBookComposite{}
-	okxFuturesBooks5Composite.Init(config.OkxExchange, config.FuturesInstrument, config.Books5Channel)
-	context.OkxFuturesBooks5Composite = okxFuturesBooks5Composite
+	okxFuturesL2Composite := container.OrderBookComposite{}
+	okxFuturesL2Composite.Init(config.OkxExchange, config.FuturesInstrument, config.BooksL2TbtChannel)
+	context.OkxFuturesL2Composite = okxFuturesL2Composite
 
-	okxSpotBooks5Composite := container.OrderBookComposite{}
-	okxSpotBooks5Composite.Init(config.OkxExchange, config.SpotInstrument, config.Books5Channel)
-	context.OkxSpotBooks5Composite = okxSpotBooks5Composite
+	okxSpotL2Composite := container.OrderBookComposite{}
+	okxSpotL2Composite.Init(config.OkxExchange, config.SpotInstrument, config.BooksL2TbtChannel)
+	context.OkxSpotL2Composite = okxSpotL2Composite
 }

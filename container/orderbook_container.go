@@ -35,7 +35,7 @@ func (ob *OrderBook) update(channel config.Channel, action string, bookChange *m
 		return result
 	} else if action == "update" {
 		result = ob.handleOrderBookMessage(bookChange)
-	} else if channel == config.Books5Channel || channel == config.BboTbtChannel {
+	} else if channel == config.BboTbtChannel {
 		ob.reset(bookChange)
 		return result
 	}

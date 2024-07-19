@@ -18,7 +18,7 @@ func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext,
 	okxFuturesTickerChan chan *public.OrderBook, okxSpotTickerChan chan *public.OrderBook) {
 
 	// 循环不同的IP，监听不同的depth channel
-	startOkxFuturesDepths(&cfg.OkxConf, globalContext, false, "", okxFuturesTickerChan)
+	startOkxFuturesDepths(&cfg.OkxConf, globalContext, false, "", config.Books50L2TbtChannel, okxFuturesTickerChan)
 	logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
 
 	//startOkxSpotDepths(&cfg.OkxConf, globalContext, false, "", okxSpotTickerChan)
@@ -26,7 +26,7 @@ func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext,
 }
 
 func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
-	isColo bool, localIP string, depthChan chan *public.OrderBook) {
+	isColo bool, localIP string, subCh config.Channel, depthChan chan *public.OrderBook) {
 
 	r := rand.New(rand.NewSource(2))
 	go func() {
@@ -42,11 +42,20 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 			successCh := make(chan *events.Success)
 
 			var okxClient = client.OkxClient{}
-			okxClient.Init(cfg, isColo, localIP)
+			if subCh == config.BboTbtChannel {
+				okxCfg := &config.OkxConfig{
+					OkxAPIKey:    "",
+					OkxSecretKey: "",
+					OkxPassword:  "",
+				}
+				okxClient.Init(okxCfg, isColo, localIP)
+			} else {
+				okxClient.Init(cfg, isColo, localIP)
+			}
 
 		ReSubscribe:
 			okxClient.Client.Ws.SetChannels(errChan, subChan, uSubChan, loginCh, successCh)
-			currCh := string(config.BooksChannel)
+			currCh := string(subCh)
 			for _, instID := range globalContext.InstrumentComposite.InstIDs {
 				err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
 					InstID:  instID,
@@ -134,7 +143,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 			for _, instID := range globalContext.InstrumentComposite.SpotInstIDs {
 				err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
 					InstID:  instID,
-					Channel: string(config.BooksChannel),
+					Channel: string(config.Books50L2TbtChannel),
 				}, depthChan)
 
 				if err != nil {
@@ -244,18 +253,18 @@ func getOrderBook(instID string, instType config.InstrumentType, ch config.Chann
 	if instType == config.FuturesInstrument {
 		if ch == config.BboTbtChannel {
 			orderBook = globalContext.OkxFuturesBboComposite.GetOrderBook(instID)
-		} else if ch == config.BooksChannel {
-			orderBook = globalContext.OkxFuturesBooksComposite.GetOrderBook(instID)
-		} else if ch == config.Books5Channel {
-			orderBook = globalContext.OkxFuturesBooks5Composite.GetOrderBook(instID)
+		} else if ch == config.Books50L2TbtChannel {
+			orderBook = globalContext.OkxFuturesBooks50L2Composite.GetOrderBook(instID)
+		} else if ch == config.BooksL2TbtChannel {
+			orderBook = globalContext.OkxFuturesL2Composite.GetOrderBook(instID)
 		}
 	} else {
 		if ch == config.BboTbtChannel {
 			orderBook = globalContext.OkxSpotBboComposite.GetOrderBook(instID)
-		} else if ch == config.BooksChannel {
-			orderBook = globalContext.OkxSpotBooksComposite.GetOrderBook(instID)
-		} else if ch == config.Books5Channel {
-			orderBook = globalContext.OkxSpotBooks5Composite.GetOrderBook(instID)
+		} else if ch == config.Books50L2TbtChannel {
+			orderBook = globalContext.OkxSpotBooks50L2Composite.GetOrderBook(instID)
+		} else if ch == config.BooksL2TbtChannel {
+			orderBook = globalContext.OkxSpotL2Composite.GetOrderBook(instID)
 		}
 	}
 	return orderBook
@@ -265,18 +274,18 @@ func updateOrderBook(instType config.InstrumentType, ch config.Channel, obMsg co
 	if instType == config.FuturesInstrument {
 		if ch == config.BboTbtChannel {
 			return globalContext.OkxFuturesBboComposite.UpdateOrderBook(obMsg)
-		} else if ch == config.BooksChannel {
-			return globalContext.OkxFuturesBooksComposite.UpdateOrderBook(obMsg)
-		} else if ch == config.Books5Channel {
-			return globalContext.OkxFuturesBooks5Composite.UpdateOrderBook(obMsg)
+		} else if ch == config.Books50L2TbtChannel {
+			return globalContext.OkxFuturesBooks50L2Composite.UpdateOrderBook(obMsg)
+		} else if ch == config.BooksL2TbtChannel {
+			return globalContext.OkxFuturesL2Composite.UpdateOrderBook(obMsg)
 		}
 	} else {
 		if ch == config.BboTbtChannel {
 			return globalContext.OkxSpotBboComposite.UpdateOrderBook(obMsg)
-		} else if ch == config.BooksChannel {
-			return globalContext.OkxSpotBooksComposite.UpdateOrderBook(obMsg)
-		} else if ch == config.Books5Channel {
-			return globalContext.OkxSpotBooks5Composite.UpdateOrderBook(obMsg)
+		} else if ch == config.Books50L2TbtChannel {
+			return globalContext.OkxSpotBooks50L2Composite.UpdateOrderBook(obMsg)
+		} else if ch == config.BooksL2TbtChannel {
+			return globalContext.OkxSpotL2Composite.UpdateOrderBook(obMsg)
 		}
 	}
 	return true
