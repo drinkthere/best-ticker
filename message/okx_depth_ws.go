@@ -44,18 +44,17 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 			successCh := make(chan *events.Success)
 
 			var okxClient = client.OkxClient{}
-			okxCfg := &config.OkxConfig{
-				OkxAPIKey:    "",
-				OkxSecretKey: "",
-				OkxPassword:  "",
+			okxClient.Init(cfg, isColo, localIP)
+			err := okxClient.Client.Ws.Private.Login()
+			if err != nil {
+				logger.Fatal("[FDepthWebSocket] Fail To Login, Error: %s", err.Error())
 			}
-			okxClient.Init(okxCfg, isColo, localIP)
 
 		ReSubscribe:
 			okxClient.Client.Ws.SetChannels(errChan, subChan, uSubChan, loginCh, successCh)
 			currCh := string(subCh)
 			for _, instID := range globalContext.InstrumentComposite.InstIDs {
-				err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
+				err = okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
 					InstID:  instID,
 					Channel: currCh,
 				}, depthChan)
