@@ -7,28 +7,32 @@ import (
 	"best-ticker/context"
 	"best-ticker/utils/logger"
 	"github.com/drinkthere/okx/events"
+	"github.com/drinkthere/okx/events/private"
 	"github.com/drinkthere/okx/events/public"
 	"github.com/drinkthere/okx/models/market"
+	wsRequestPrivate "github.com/drinkthere/okx/requests/ws/private"
 	wsRequestPublic "github.com/drinkthere/okx/requests/ws/public"
 	"math/rand"
 	"time"
 )
 
-func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext,
-	okxFuturesTickerChan chan *public.OrderBook, okxSpotTickerChan chan *public.OrderBook) {
-
+func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext) {
 	// 循环不同的IP，监听不同的depth channel
-	startOkxFuturesDepths(&cfg.OkxConf, globalContext, false, "", config.Books50L2TbtChannel, okxFuturesTickerChan)
+	startOkxFuturesPublicDepths(&cfg.OkxConf, globalContext, false, "", config.Books50L2TbtChannel)
+	logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
+
+	startOkxFuturesPrivateDepths(&cfg.OkxConf, globalContext, false, "", config.Books50L2TbtChannel)
 	logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
 
 	//startOkxSpotDepths(&cfg.OkxConf, globalContext, false, "", okxSpotTickerChan)
 	//logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel")
 }
 
-func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
-	isColo bool, localIP string, subCh config.Channel, depthChan chan *public.OrderBook) {
+func startOkxFuturesPublicDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
+	isColo bool, localIP string, subCh config.Channel) {
 
 	r := rand.New(rand.NewSource(2))
+	depthChan := make(chan *public.OrderBook)
 	go func() {
 		defer func() {
 			logger.Warn("[FDepthWebSocket] Okx Futures Channel Listening Exited.")
@@ -42,16 +46,12 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 			successCh := make(chan *events.Success)
 
 			var okxClient = client.OkxClient{}
-			if subCh == config.BboTbtChannel {
-				okxCfg := &config.OkxConfig{
-					OkxAPIKey:    "",
-					OkxSecretKey: "",
-					OkxPassword:  "",
-				}
-				okxClient.Init(okxCfg, isColo, localIP)
-			} else {
-				okxClient.Init(cfg, isColo, localIP)
+			okxCfg := &config.OkxConfig{
+				OkxAPIKey:    "",
+				OkxSecretKey: "",
+				OkxPassword:  "",
 			}
+			okxClient.Init(okxCfg, isColo, localIP)
 
 		ReSubscribe:
 			okxClient.Client.Ws.SetChannels(errChan, subChan, uSubChan, loginCh, successCh)
@@ -61,7 +61,6 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 					InstID:  instID,
 					Channel: currCh,
 				}, depthChan)
-
 				if err != nil {
 					logger.Fatal("[FDepthWebSocket] Fail To Listen Futures Depth For %s, %s", instID, err.Error())
 				} else {
@@ -123,11 +122,14 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 	}()
 }
 
-func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
-	isColo bool, localIP string, depthChan chan *public.OrderBook) {
+func startOkxFuturesPrivateDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
+	isColo bool, localIP string, subCh config.Channel) {
+
+	depthChan := make(chan *private.OrderBook)
+	r := rand.New(rand.NewSource(2))
 	go func() {
 		defer func() {
-			logger.Warn("[SDepthWebSocket] Okx Spot Depth Listening Exited.")
+			logger.Warn("[FDepthWebSocket] Okx Futures Channel Listening Exited.")
 		}()
 		for {
 		ReConnect:
@@ -139,42 +141,130 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 
 			var okxClient = client.OkxClient{}
 			okxClient.Init(cfg, isColo, localIP)
+
+		ReSubscribe:
 			okxClient.Client.Ws.SetChannels(errChan, subChan, uSubChan, loginCh, successCh)
-			for _, instID := range globalContext.InstrumentComposite.SpotInstIDs {
-				err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
+			currCh := string(subCh)
+			for _, instID := range globalContext.InstrumentComposite.InstIDs {
+				err := okxClient.Client.Ws.Private.OrderBook(wsRequestPrivate.OrderBook{
 					InstID:  instID,
-					Channel: string(config.Books50L2TbtChannel),
+					Channel: currCh,
 				}, depthChan)
 
 				if err != nil {
-					logger.Fatal("[SDepthWebSocket] Fail To Listen Spot Depth for %s, %s", instID, err.Error())
+					logger.Fatal("[FDepthWebSocket] Fail To Listen Futures Depth For %s, %s", instID, err.Error())
+				} else {
+					logger.Info("[FDepthWebSocket] Futures Depth WebSocket Has Established For %s", instID)
 				}
-				logger.Info("[SDepthWebSocket] Spot Depth WebSocket Has Established For %s", instID)
 			}
-
 			for {
 				select {
 				case sub := <-subChan:
 					channel, _ := sub.Arg.Get("channel")
-					logger.Info("[SDepthWebSocket] Spot Subscribe \t%s", channel)
+					logger.Info("[FDepthWebSocket] Futures Subscribe \t%s", channel)
+				case usub := <-uSubChan:
+					channel, _ := usub.Arg.Get("channel")
+					logger.Info("[FDepthWebSocket] Futures Unsubscribe \t%s", channel)
+					time.Sleep(time.Second * 30)
+					goto ReSubscribe
 				case err := <-errChan:
-					logger.Error("[SDepthWebSocket] Spot Occur Some Error \t%+v", err)
+					logger.Error("[FDepthWebSocket] Futures Occur Some Error \t%+v", err)
 					for _, datum := range err.Data {
-						logger.Error("[SDepthWebSocket] Spot Error Data \t\t%+v", datum)
+						logger.Error("[FDepthWebSocket] Futures Error Data \t\t%+v", datum)
 					}
 				case s := <-successCh:
-					logger.Info("[SDepthWebSocket] Spot Receive Success: %+v", s)
+					logger.Info("[FDepthWebSocket] Futures Receive Success: %+v", s)
+				case s := <-depthChan:
+					for _, b := range s.Books {
+						// update orderbook
+						chRaw, _ := s.Arg.Get("channel")
+						ch := config.Channel(chRaw.(string))
+						instIDRaw, _ := s.Arg.Get("instId")
+						instID := instIDRaw.(string)
+						action := s.Action
+
+						instType := config.FuturesInstrument
+						obMsg := convertToObMsg(instType, ch, instID, action, b)
+						result := updateOrderBook(instType, ch, obMsg, globalContext)
+						if !result {
+							okxClient.Client.Ws.Private.UOrderBook(wsRequestPrivate.OrderBook{
+								InstID:  instID,
+								Channel: currCh,
+							})
+						} else {
+							if r.Int31n(10000) < 10000 {
+								orderBook := getOrderBook(instID, instType, ch, globalContext)
+								logger.Info("[GatherFDepth] orderBooks.bids is %+v, orderBooks.asks is %+v", orderBook.BestBid(), orderBook.BestAsk())
+							}
+							checkToUpdateTicker(instID, instType, ch, globalContext)
+						}
+					}
 				case b := <-okxClient.Client.Ws.DoneChan:
-					logger.Info("[SDepthWebSocket] Spot End\t%v", b)
+					logger.Info("[FDepthWebSocket] Futures End\t%v", b)
 					// 暂停一秒再跳出，避免异常时频繁发起重连
-					logger.Warn("[SDepthWebSocket] Will Reconnect Spot-WebSocket After 1 Second")
+					logger.Warn("[FDepthWebSocket] Will Reconnect Futures-WebSocket After 1 Second")
 					time.Sleep(time.Second * 1)
 					goto ReConnect
 				}
+
 			}
 		}
 	}()
 }
+
+//
+//func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
+//	isColo bool, localIP string, depthChan chan *public.OrderBook) {
+//	go func() {
+//		defer func() {
+//			logger.Warn("[SDepthWebSocket] Okx Spot Depth Listening Exited.")
+//		}()
+//		for {
+//		ReConnect:
+//			errChan := make(chan *events.Error)
+//			subChan := make(chan *events.Subscribe)
+//			uSubChan := make(chan *events.Unsubscribe)
+//			loginCh := make(chan *events.Login)
+//			successCh := make(chan *events.Success)
+//
+//			var okxClient = client.OkxClient{}
+//			okxClient.Init(cfg, isColo, localIP)
+//			okxClient.Client.Ws.SetChannels(errChan, subChan, uSubChan, loginCh, successCh)
+//			for _, instID := range globalContext.InstrumentComposite.SpotInstIDs {
+//				err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
+//					InstID:  instID,
+//					Channel: string(config.Books50L2TbtChannel),
+//				}, depthChan)
+//
+//				if err != nil {
+//					logger.Fatal("[SDepthWebSocket] Fail To Listen Spot Depth for %s, %s", instID, err.Error())
+//				}
+//				logger.Info("[SDepthWebSocket] Spot Depth WebSocket Has Established For %s", instID)
+//			}
+//
+//			for {
+//				select {
+//				case sub := <-subChan:
+//					channel, _ := sub.Arg.Get("channel")
+//					logger.Info("[SDepthWebSocket] Spot Subscribe \t%s", channel)
+//				case err := <-errChan:
+//					logger.Error("[SDepthWebSocket] Spot Occur Some Error \t%+v", err)
+//					for _, datum := range err.Data {
+//						logger.Error("[SDepthWebSocket] Spot Error Data \t\t%+v", datum)
+//					}
+//				case s := <-successCh:
+//					logger.Info("[SDepthWebSocket] Spot Receive Success: %+v", s)
+//				case b := <-okxClient.Client.Ws.DoneChan:
+//					logger.Info("[SDepthWebSocket] Spot End\t%v", b)
+//					// 暂停一秒再跳出，避免异常时频繁发起重连
+//					logger.Warn("[SDepthWebSocket] Will Reconnect Spot-WebSocket After 1 Second")
+//					time.Sleep(time.Second * 1)
+//					goto ReConnect
+//				}
+//			}
+//		}
+//	}()
+//}
 
 func checkToUpdateTicker(instID string, instType config.InstrumentType, ch config.Channel, globalContext *context.GlobalContext) {
 	// b.TS > ticker.TS && ticker changed, update ticker
