@@ -7,10 +7,8 @@ import (
 	"best-ticker/context"
 	"best-ticker/utils/logger"
 	"github.com/drinkthere/okx/events"
-	"github.com/drinkthere/okx/events/private"
 	"github.com/drinkthere/okx/events/public"
 	"github.com/drinkthere/okx/models/market"
-	wsRequestPrivate "github.com/drinkthere/okx/requests/ws/private"
 	wsRequestPublic "github.com/drinkthere/okx/requests/ws/public"
 	"math/rand"
 	"time"
@@ -18,17 +16,17 @@ import (
 
 func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext) {
 	// 循环不同的IP，监听不同的depth channel
-	//startOkxFuturesPublicDepths(&cfg.OkxConfig, globalContext, false, "", config.BboTbtChannel)
+	//startOkxFuturesDepths(&cfg.OkxConfig, globalContext, false, "", config.BboTbtChannel)
 	//logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
 
-	startOkxFuturesPrivateDepths(&cfg.OkxConfig, globalContext, false, "", config.Books50L2TbtChannel)
+	startOkxFuturesDepths(&cfg.OkxConfig, globalContext, true, "192.168.14.38", config.Books50L2TbtChannel)
 	logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
 
 	//startOkxSpotDepths(&cfg.OkxConf, globalContext, false, "", okxSpotTickerChan)
 	//logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel")
 }
 
-func startOkxFuturesPublicDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
+func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
 	isColo bool, localIP string, subCh config.Channel) {
 
 	r := rand.New(rand.NewSource(2))
@@ -98,96 +96,6 @@ func startOkxFuturesPublicDepths(cfg *config.OkxConfig, globalContext *context.G
 						result := updateOrderBook(instType, ch, obMsg, globalContext)
 						if !result {
 							okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
-								InstID:  instID,
-								Channel: currCh,
-							})
-						} else {
-							if r.Int31n(10000) < 10000 {
-								orderBook := getOrderBook(instID, instType, ch, globalContext)
-								logger.Info("[GatherFDepth] orderBooks.bids is %+v, orderBooks.asks is %+v", orderBook.BestBid(), orderBook.BestAsk())
-							}
-							checkToUpdateTicker(instID, instType, ch, globalContext)
-						}
-					}
-				case b := <-okxClient.Client.Ws.DoneChan:
-					logger.Info("[FDepthWebSocket] Futures End\t%v", b)
-					// 暂停一秒再跳出，避免异常时频繁发起重连
-					logger.Warn("[FDepthWebSocket] Will Reconnect Futures-WebSocket After 1 Second")
-					time.Sleep(time.Second * 1)
-					goto ReConnect
-				}
-
-			}
-		}
-	}()
-}
-
-func startOkxFuturesPrivateDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
-	isColo bool, localIP string, subCh config.Channel) {
-
-	depthChan := make(chan *private.OrderBook)
-	r := rand.New(rand.NewSource(2))
-	go func() {
-		defer func() {
-			logger.Warn("[FDepthWebSocket] Okx Futures Channel Listening Exited.")
-		}()
-		for {
-		ReConnect:
-			errChan := make(chan *events.Error)
-			subChan := make(chan *events.Subscribe)
-			uSubChan := make(chan *events.Unsubscribe)
-			loginCh := make(chan *events.Login)
-			successCh := make(chan *events.Success)
-
-			var okxClient = client.OkxClient{}
-			okxClient.Init(cfg, isColo, localIP)
-
-		ReSubscribe:
-			okxClient.Client.Ws.SetChannels(errChan, subChan, uSubChan, loginCh, successCh)
-			currCh := string(subCh)
-			for _, instID := range globalContext.InstrumentComposite.InstIDs {
-				err := okxClient.Client.Ws.Private.OrderBook(wsRequestPrivate.OrderBook{
-					InstID:  instID,
-					Channel: currCh,
-				}, depthChan)
-
-				if err != nil {
-					logger.Fatal("[FDepthWebSocket] Fail To Listen Futures Depth For %s, %s", instID, err.Error())
-				} else {
-					logger.Info("[FDepthWebSocket] Futures Depth WebSocket Has Established For %s", instID)
-				}
-			}
-			for {
-				select {
-				case sub := <-subChan:
-					channel, _ := sub.Arg.Get("channel")
-					logger.Info("[FDepthWebSocket] Futures Subscribe \t%s", channel)
-				case usub := <-uSubChan:
-					channel, _ := usub.Arg.Get("channel")
-					logger.Info("[FDepthWebSocket] Futures Unsubscribe \t%s", channel)
-					time.Sleep(time.Second * 30)
-					goto ReSubscribe
-				case err := <-errChan:
-					logger.Error("[FDepthWebSocket] Futures Occur Some Error \t%+v", err)
-					for _, datum := range err.Data {
-						logger.Error("[FDepthWebSocket] Futures Error Data \t\t%+v", datum)
-					}
-				case s := <-successCh:
-					logger.Info("[FDepthWebSocket] Futures Receive Success: %+v", s)
-				case s := <-depthChan:
-					for _, b := range s.Books {
-						// update orderbook
-						chRaw, _ := s.Arg.Get("channel")
-						ch := config.Channel(chRaw.(string))
-						instIDRaw, _ := s.Arg.Get("instId")
-						instID := instIDRaw.(string)
-						action := s.Action
-
-						instType := config.FuturesInstrument
-						obMsg := convertToObMsg(instType, ch, instID, action, b)
-						result := updateOrderBook(instType, ch, obMsg, globalContext)
-						if !result {
-							okxClient.Client.Ws.Private.UOrderBook(wsRequestPrivate.OrderBook{
 								InstID:  instID,
 								Channel: currCh,
 							})
