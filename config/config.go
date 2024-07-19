@@ -13,17 +13,15 @@ type OkxConfig struct {
 }
 
 type Source struct {
-	IP   string // local IP to connect to OKx websocket
-	Colo bool   // is co-location with Okx
+	IP        string    // local IP to connect to OKx websocket
+	Colo      bool      // is co-location with Okx
+	OkxConfig OkxConfig // Okx配置
 }
 
 type Config struct {
 	// 日志配置
 	LogLevel zapcore.Level
 	LogPath  string
-
-	// Okx配置
-	OkxConfig OkxConfig
 
 	Sources []Source // 公网IP
 	InstIDs []string // 要套利的交易对

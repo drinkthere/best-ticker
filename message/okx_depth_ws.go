@@ -15,18 +15,23 @@ import (
 )
 
 func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext) {
-	// 循环不同的IP，监听不同的depth channel
-	startOkxFuturesDepths(&cfg.OkxConfig, globalContext, false, "", config.BboTbtChannel)
-	logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
+	for _, source := range cfg.Sources {
+		// 循环不同的IP，监听不同的depth channel
+		startOkxFuturesDepths(&cfg.OkxConfig, globalContext, source.Colo, source.IP, config.BboTbtChannel)
+		logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
 
-	startOkxFuturesDepths(&cfg.OkxConfig, globalContext, true, "192.168.14.38", config.Books50L2TbtChannel)
-	logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
+		//startOkxFuturesDepths(&cfg.OkxConfig, globalContext, source.Colo, source.IP, config.BooksL2TbtChannel)
+		//logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
+		//
+		//startOkxSpotDepths(&cfg.OkxConfig, globalContext, source.Colo, source.IP, config.BboTbtChannel)
+		//logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel")
+		//
+		//startOkxSpotDepths(&cfg.OkxConfig, globalContext, source.Colo, source.IP, config.BooksL2TbtChannel)
+		//logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel")
 
-	startOkxSpotDepths(&cfg.OkxConfig, globalContext, false, "", config.BboTbtChannel)
-	logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel")
+		time.Sleep(1 * time.Second)
+	}
 
-	startOkxSpotDepths(&cfg.OkxConfig, globalContext, true, "192.168.14.38", config.Books50L2TbtChannel)
-	logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel")
 }
 
 func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
@@ -72,10 +77,10 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 			for {
 				select {
 				case sub := <-subChan:
-					instID, _ := sub.Arg.Get("instID")
+					instID, _ := sub.Arg.Get("instId")
 					logger.Info("[FDepthWebSocket] Futures Subscribe %s %s %s", localIP, instID, currCh)
 				case usub := <-uSubChan:
-					instID, _ := usub.Arg.Get("instID")
+					instID, _ := usub.Arg.Get("instId")
 					logger.Info("[FDepthWebSocket] Futures Unsubscribe %s %s %s", localIP, instID, currCh)
 					time.Sleep(time.Second * 30)
 					goto ReSubscribe
@@ -103,7 +108,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 						} else {
 							if r.Int31n(10000) < 5 {
 								orderBook := getOrderBook(instID, instType, ch, globalContext)
-								logger.Info("[GatherFDepth] orderBooks.bids is %+v, orderBooks.asks is %+v", orderBook.BestBid(), orderBook.BestAsk())
+								logger.Info("[GatherFDepth] %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instType, ch, orderBook.BestBid(), orderBook.BestAsk())
 							}
 							checkToUpdateTicker(instID, instType, ch, globalContext)
 						}
@@ -165,10 +170,10 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 			for {
 				select {
 				case sub := <-subChan:
-					instID, _ := sub.Arg.Get("instID")
+					instID, _ := sub.Arg.Get("instId")
 					logger.Info("[SDepthWebSocket] Spot Subscribe %s %s %s", localIP, instID, currCh)
 				case usub := <-uSubChan:
-					instID, _ := usub.Arg.Get("instID")
+					instID, _ := usub.Arg.Get("instId")
 					logger.Info("[SDepthWebSocket] Futures Unsubscribe %s %s %s", localIP, instID, currCh)
 					time.Sleep(time.Second * 30)
 					goto ReSubscribe
@@ -196,7 +201,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 						} else {
 							if r.Int31n(10000) < 5 {
 								orderBook := getOrderBook(instID, instType, ch, globalContext)
-								logger.Info("[GatherFDepth] orderBooks.bids is %+v, orderBooks.asks is %+v", orderBook.BestBid(), orderBook.BestAsk())
+								logger.Info("[GatherFDepth] %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instType, ch, orderBook.BestBid(), orderBook.BestAsk())
 							}
 							checkToUpdateTicker(instID, instType, ch, globalContext)
 						}
