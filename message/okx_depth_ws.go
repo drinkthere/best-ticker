@@ -17,16 +17,16 @@ import (
 func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext) {
 	for _, source := range cfg.Sources {
 		// 循环不同的IP，监听不同的depth channel
-		startOkxFuturesDepths(&cfg.OkxConfig, globalContext, source.Colo, source.IP, config.BboTbtChannel)
+		startOkxFuturesDepths(&source.OkxConfig, globalContext, source.Colo, source.IP, config.BboTbtChannel)
 		logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
 
-		//startOkxFuturesDepths(&cfg.OkxConfig, globalContext, source.Colo, source.IP, config.BooksL2TbtChannel)
+		//startOkxFuturesDepths(&source.OkxConfig, globalContext, source.Colo, source.IP, config.BooksL2TbtChannel)
 		//logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel")
 		//
-		//startOkxSpotDepths(&cfg.OkxConfig, globalContext, source.Colo, source.IP, config.BboTbtChannel)
+		//startOkxSpotDepths(&source.OkxConfig, globalContext, source.Colo, source.IP, config.BboTbtChannel)
 		//logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel")
 		//
-		//startOkxSpotDepths(&cfg.OkxConfig, globalContext, source.Colo, source.IP, config.BooksL2TbtChannel)
+		//startOkxSpotDepths(&source.OkxConfig, globalContext, source.Colo, source.IP, config.BooksL2TbtChannel)
 		//logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel")
 
 		time.Sleep(1 * time.Second)
