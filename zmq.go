@@ -13,13 +13,13 @@ import (
 
 func StartZmq() {
 	logger.Info("Start Ticker ZMQ")
-	startZmqByTopic(&globalConfig, &globalContext, "ticker")
+	startTickerZmq(&globalConfig, &globalContext)
 
 	logger.Info("Start OrderBook ZMQ")
-	startZmqByTopic(&globalConfig, &globalContext, "orderBook")
+	startOrderBookZmq(&globalConfig, &globalContext)
 }
 
-func startZmqByTopic(cfg *config.Config, globalContext *context.GlobalContext, topic string) {
+func startTickerZmq(cfg *config.Config, globalContext *context.GlobalContext) {
 	go func() {
 		ctx, err := zmq.NewContext()
 		if err != nil {
@@ -33,84 +33,101 @@ func startZmqByTopic(cfg *config.Config, globalContext *context.GlobalContext, t
 			os.Exit(2)
 		}
 
-		if topic == "ticker" {
-			err = pub.Bind(cfg.TickerZMQIPC)
-			if err != nil {
-				ctx.Term()
-				logger.Fatal("[ZMQ] Failed to bind IPC %s, error: %s", cfg.TickerZMQIPC, err.Error())
-				os.Exit(3)
-			}
+		err = pub.Bind(cfg.TickerZMQIPC)
+		if err != nil {
+			ctx.Term()
+			logger.Fatal("[ZMQ] Failed to bind IPC %s, error: %s", cfg.TickerZMQIPC, err.Error())
+			os.Exit(3)
+		}
 
-			defer pub.Close()
-			defer ctx.Term()
+		defer pub.Close()
+		defer ctx.Term()
 
-			for {
-				select {
-				case t := <-globalContext.TickerUpdateChan:
-					md := &pb.OkxTicker{
-						InstID:   t.InstID,
-						InstType: string(t.InstType),
-						BestBid:  t.BidPrice,
-						BestAsk:  t.AskPrice,
-						EventTs:  t.UpdateTimeMs,
-						BidSz:    t.BidSize,
-						AskSz:    t.AskSize,
-					}
+		logger.Info("ticker zmq publisher started")
+		for {
+			select {
+			case t := <-globalContext.TickerUpdateChan:
 
-					data, err := proto.Marshal(md)
-					if err != nil {
-						logger.Error("[ZMQ] Error marshaling Ticker: %v", err)
-						continue
-					}
-					_, err = pub.Send(string(data), 0)
-					if err != nil {
-						logger.Error("[ZMQ] Error sending Ticker: %v", err)
-						continue
-					}
+				md := &pb.OkxTicker{
+					InstID:   t.InstID,
+					InstType: string(t.InstType),
+					BestBid:  t.BidPrice,
+					BestAsk:  t.AskPrice,
+					EventTs:  t.UpdateTimeMs,
+					BidSz:    t.BidSize,
+					AskSz:    t.AskSize,
 				}
-			}
-		} else if topic == "orderBook" {
-			err = pub.Bind(cfg.OrderBookZMQIPC)
-			if err != nil {
-				ctx.Term()
-				logger.Fatal("[ZMQ] Failed to bind IPC %s, error: %s", cfg.OrderBookZMQIPC, err.Error())
-				os.Exit(3)
-			}
 
-			defer pub.Close()
-			defer ctx.Term()
-
-			for {
-				select {
-				case ob := <-globalContext.OrderBookUpdateChan:
-					var orderBook *pb.OkxOrderBook
-					if ob.InstType == config.FuturesInstrument {
-						bboOb := globalContext.OkxSpotBboComposite.GetOrderBook(ob.InstID)
-						l250Ob := globalContext.OkxSpotBooks50L2Composite.GetOrderBook(ob.InstID)
-						l2Ob := globalContext.OkxSpotL2Composite.GetOrderBook(ob.InstID)
-						orderBook = genOrderBooks(10, bboOb, l250Ob, l2Ob)
-					} else if ob.InstType == config.SpotInstrument {
-						bboOb := globalContext.OkxFuturesBboComposite.GetOrderBook(ob.InstID)
-						l250Ob := globalContext.OkxFuturesBooks50L2Composite.GetOrderBook(ob.InstID)
-						l2Ob := globalContext.OkxFuturesL2Composite.GetOrderBook(ob.InstID)
-						orderBook = genOrderBooks(10, bboOb, l250Ob, l2Ob)
-					}
-					orderBook.InstID = ob.InstID
-					orderBook.InstType = string(ob.InstType)
-
-					data, err := proto.Marshal(orderBook)
-					if err != nil {
-						logger.Error("[ZMQ] Error marshaling OrderBook: %v", err)
-						continue
-					}
-					_, err = pub.Send(string(data), 0)
-					if err != nil {
-						logger.Error("[ZMQ] Error sending OrderBook: %v", err)
-						continue
-					}
+				data, err := proto.Marshal(md)
+				if err != nil {
+					logger.Error("[ZMQ] Error marshaling Ticker: %v", err)
+					continue
+				}
+				_, err = pub.Send(string(data), 0)
+				if err != nil {
+					logger.Error("[ZMQ] Error sending Ticker: %v", err)
+					continue
 				}
 			}
 		}
+	}()
+}
+
+func startOrderBookZmq(cfg *config.Config, globalContext *context.GlobalContext) {
+	go func() {
+		ctx, err := zmq.NewContext()
+		if err != nil {
+			logger.Fatal("[ZMQ] Failed to create context, error: %s", err.Error())
+			os.Exit(1)
+		}
+		pub, err := ctx.NewSocket(zmq.PUB)
+		if err != nil {
+			ctx.Term()
+			logger.Fatal("[ZMQ] Failed to create PUB socket, error: %s", err.Error())
+			os.Exit(2)
+		}
+
+		err = pub.Bind(cfg.OrderBookZMQIPC)
+		if err != nil {
+			ctx.Term()
+			logger.Fatal("[ZMQ] Failed to bind IPC %s, error: %s", cfg.OrderBookZMQIPC, err.Error())
+			os.Exit(3)
+		}
+
+		defer pub.Close()
+		defer ctx.Term()
+
+		for {
+			select {
+			case ob := <-globalContext.OrderBookUpdateChan:
+				var orderBook *pb.OkxOrderBook
+				if ob.InstType == config.FuturesInstrument {
+					bboOb := globalContext.OkxSpotBboComposite.GetOrderBook(ob.InstID)
+					l250Ob := globalContext.OkxSpotBooks50L2Composite.GetOrderBook(ob.InstID)
+					l2Ob := globalContext.OkxSpotL2Composite.GetOrderBook(ob.InstID)
+					orderBook = genOrderBooks(10, bboOb, l250Ob, l2Ob)
+				} else if ob.InstType == config.SpotInstrument {
+					bboOb := globalContext.OkxFuturesBboComposite.GetOrderBook(ob.InstID)
+					l250Ob := globalContext.OkxFuturesBooks50L2Composite.GetOrderBook(ob.InstID)
+					l2Ob := globalContext.OkxFuturesL2Composite.GetOrderBook(ob.InstID)
+					orderBook = genOrderBooks(10, bboOb, l250Ob, l2Ob)
+				}
+				orderBook.InstID = ob.InstID
+				orderBook.InstType = string(ob.InstType)
+
+				data, err := proto.Marshal(orderBook)
+				if err != nil {
+					logger.Error("[ZMQ] Error marshaling OrderBook: %v", err)
+					continue
+				}
+				_, err = pub.Send(string(data), 0)
+				if err != nil {
+					logger.Error("[ZMQ] Error sending OrderBook: %v", err)
+					continue
+				}
+			}
+		}
+
 	}()
 }
 
