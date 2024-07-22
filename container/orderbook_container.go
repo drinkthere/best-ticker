@@ -2,6 +2,7 @@ package container
 
 import (
 	"best-ticker/config"
+	"best-ticker/protocol/pb"
 	"best-ticker/utils/logger"
 	"github.com/drinkthere/okx/models/market"
 	"hash/crc32"
@@ -12,6 +13,11 @@ import (
 	"time"
 )
 
+type OrderBookUpdate struct {
+	InstID   string
+	InstType config.InstrumentType
+	Channel  config.Channel
+}
 type OrderBook struct {
 	bids         []*market.OrderBookEntity
 	asks         []*market.OrderBookEntity
@@ -206,6 +212,62 @@ func (ob *OrderBook) UpdateTime() int64 {
 	ob.mu.RLock()
 	defer ob.mu.RUnlock()
 	return ob.updateTimeMs
+}
+
+type PublicOrderBook struct {
+	Bids         []*market.OrderBookEntity
+	Asks         []*market.OrderBookEntity
+	UpdateTimeMs int64
+}
+
+func (ob *OrderBook) LimitDepth(limit int) *pb.OkxOrderBook {
+	ob.mu.Lock()
+	defer ob.mu.Unlock()
+
+	newOb := &pb.OkxOrderBook{
+		Bids:         make([]*pb.OkxOrder, 0, limit),
+		Asks:         make([]*pb.OkxOrder, 0, limit),
+		UpdateTimeMs: ob.updateTimeMs,
+	}
+
+	// 限制买卖盘的深度并深拷贝订单项
+	if len(ob.bids) > limit {
+		for _, entity := range ob.bids[:limit] {
+			newEntity := pb.OkxOrder{
+				Price: entity.DepthPrice,
+				Size:  entity.Size,
+			}
+			newOb.Bids = append(newOb.Bids, &newEntity)
+		}
+	} else {
+		for _, entity := range ob.bids {
+			newEntity := pb.OkxOrder{
+				Price: entity.DepthPrice,
+				Size:  entity.Size,
+			}
+			newOb.Bids = append(newOb.Bids, &newEntity)
+		}
+	}
+
+	if len(ob.asks) > limit {
+		for _, entity := range ob.asks[:limit] {
+			newEntity := pb.OkxOrder{
+				Price: entity.DepthPrice,
+				Size:  entity.Size,
+			}
+			newOb.Asks = append(newOb.Asks, &newEntity)
+		}
+	} else {
+		for _, entity := range ob.asks {
+			newEntity := pb.OkxOrder{
+				Price: entity.DepthPrice,
+				Size:  entity.Size,
+			}
+			newOb.Asks = append(newOb.Asks, &newEntity)
+		}
+	}
+
+	return newOb
 }
 
 type OrderBookMsg struct {

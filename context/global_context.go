@@ -18,6 +18,9 @@ type GlobalContext struct {
 
 	OkxFuturesL2Composite container.OrderBookComposite
 	OkxSpotL2Composite    container.OrderBookComposite
+
+	OrderBookUpdateChan chan *container.OrderBookUpdate
+	TickerUpdateChan    chan *container.TickerWrapper
 }
 
 func (context *GlobalContext) Init(globalConfig *config.Config) {
@@ -29,6 +32,9 @@ func (context *GlobalContext) Init(globalConfig *config.Config) {
 
 	// 初始化orderBook数据
 	context.initOrderBookComposite()
+
+	context.OrderBookUpdateChan = make(chan *container.OrderBookUpdate)
+	context.TickerUpdateChan = make(chan *container.TickerWrapper)
 }
 
 func (context *GlobalContext) initInstrumentComposite(globalConfig *config.Config) {

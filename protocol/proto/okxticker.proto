@@ -1,0 +1,11 @@
+syntax = "proto3";
+option go_package = "protocol/pb";
+message OkxTicker {
+  string instID = 1;
+  string instType = 2;
+  double bestBid = 3;
+  double bidSz = 4;
+  double bestAsk = 5;
+  double askSz = 6;
+  int64 eventTs = 7;
+}

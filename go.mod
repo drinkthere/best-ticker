@@ -5,7 +5,9 @@ go 1.22.0
 require (
 	github.com/drinkthere/okx v1.0.27
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
+	github.com/pebbe/zmq4 v1.2.11
 	go.uber.org/zap v1.27.0
+	google.golang.org/protobuf v1.34.2
 )
 
 require (

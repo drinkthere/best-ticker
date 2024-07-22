@@ -13,12 +13,13 @@ import (
 
 func StartOkxTickerWs(cfg *config.Config, globalContext *context.GlobalContext,
 	okxFuturesTickerChan chan *public.Tickers, okxSpotTickerChan chan *public.Tickers) {
-
-	// 循环不同的IP，监听对应的tickers
-	startOkxFuturesTickers(&cfg.OkxConfig, globalContext, false, "", okxFuturesTickerChan)
-	logger.Info("[FTickerWebSocket] Start Listen Okx Futures Tickers")
-	startOkxSpotTickers(&cfg.OkxConfig, globalContext, false, "", okxSpotTickerChan)
-	logger.Info("[STickerWebSocket] Start Listen Okx Spot Tickers")
+	for _, source := range cfg.Sources {
+		// 循环不同的IP，监听对应的tickers
+		startOkxFuturesTickers(&source.OkxConfig, globalContext, source.Colo, source.IP, okxFuturesTickerChan)
+		logger.Info("[FTickerWebSocket] Start Listen Okx Futures Tickers")
+		startOkxSpotTickers(&source.OkxConfig, globalContext, source.Colo, source.IP, okxSpotTickerChan)
+		logger.Info("[STickerWebSocket] Start Listen Okx Spot Tickers")
+	}
 }
 
 func startOkxFuturesTickers(cfg *config.OkxConfig, globalContext *context.GlobalContext,

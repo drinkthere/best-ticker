@@ -32,7 +32,7 @@ lint: golangci
 
 .PHONY: proto
 proto:
-	protoc --go_out=. ./protocol/proto/l2_book.proto
+	protoc --go_out=. ./protocol/proto/ticker.proto
 
 golangci:
 ifeq (, $(shell which golangci-lint))

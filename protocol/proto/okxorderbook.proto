@@ -1,0 +1,14 @@
+syntax = "proto3";
+option go_package = "protocol/pb";
+message OkxOrderBook {
+  string instID = 1;
+  string instType = 2;
+  repeated OkxOrder bids = 3;
+  repeated OkxOrder asks = 4;
+  int64 updateTimeMs = 5;
+}
+
+message OkxOrder {
+  double price = 1;
+  double size = 2;
+}
