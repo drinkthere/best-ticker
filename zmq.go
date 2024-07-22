@@ -11,7 +11,15 @@ import (
 	"os"
 )
 
-func StartZmq(cfg *config.Config, globalContext *context.GlobalContext, topic string) {
+func StartZmq() {
+	logger.Info("Start Ticker ZMQ")
+	startZmqByTopic(&globalConfig, &globalContext, "ticker")
+
+	logger.Info("Start OrderBook ZMQ")
+	startZmqByTopic(&globalConfig, &globalContext, "orderBook")
+}
+
+func startZmqByTopic(cfg *config.Config, globalContext *context.GlobalContext, topic string) {
 	go func() {
 		ctx, err := zmq.NewContext()
 		if err != nil {

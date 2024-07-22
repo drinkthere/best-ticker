@@ -43,9 +43,13 @@ func main() {
 	// 解析config，加载杠杆和合约交易对，初始化context，账户初始化设置，拉取仓位、余额等
 	globalContext.Init(&globalConfig)
 
+	// 启动zmq服务
+	StartZmq()
+
 	// 开始监听ticker消息
 	startTickerMessage()
 
+	// 开始监听orderBook消息
 	startDepthMessage()
 
 	// 阻塞主进程
