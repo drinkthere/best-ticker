@@ -26,9 +26,7 @@ func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext) {
 
 			time.Sleep(1 * time.Second)
 		}
-
 	}
-
 }
 
 func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
@@ -228,10 +226,12 @@ func checkToUpdateTicker(instID string, instType config.InstrumentType, ch confi
 	if obUpdateTime > ticker.UpdateTimeMs {
 		bestBid := orderBook.BestBid()
 		bestAsk := orderBook.BestAsk()
-		if bestBid.DepthPrice != ticker.AskPrice || bestAsk.DepthPrice != ticker.BidPrice {
-			tickerMsg := convertDepthToOkxTickerMessage(config.FuturesInstrument, instID, ch, bestBid, bestAsk, obUpdateTime)
+
+		if bestBid.DepthPrice != ticker.BidPrice || bestAsk.DepthPrice != ticker.AskPrice {
+			tickerMsg := convertDepthToOkxTickerMessage(instType, instID, ch, bestBid, bestAsk, obUpdateTime)
 			result := updateTicker(instType, tickerMsg, globalContext)
 			if result {
+				logger.Debug("%s|CHANNEL|%s", instType, ch)
 				globalContext.TickerUpdateChan <- &tickerMsg
 			}
 		}
@@ -279,7 +279,7 @@ func updateTicker(instType config.InstrumentType, tickerMsg container.TickerWrap
 	var result bool
 	if instType == config.FuturesInstrument {
 		result = globalContext.OkxFuturesTickerComposite.UpdateTicker(tickerMsg)
-	} else {
+	} else if instType == config.SpotInstrument {
 		result = globalContext.OkxSpotTickerComposite.UpdateTicker(tickerMsg)
 	}
 	return result

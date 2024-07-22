@@ -47,7 +47,6 @@ func startTickerZmq(cfg *config.Config, globalContext *context.GlobalContext) {
 		for {
 			select {
 			case t := <-globalContext.TickerUpdateChan:
-
 				md := &pb.OkxTicker{
 					InstID:   t.InstID,
 					InstType: string(t.InstType),
@@ -97,24 +96,27 @@ func startOrderBookZmq(cfg *config.Config, globalContext *context.GlobalContext)
 		defer pub.Close()
 		defer ctx.Term()
 
+		logger.Info("orderBook zmq publisher started")
 		for {
 			select {
 			case ob := <-globalContext.OrderBookUpdateChan:
 				var orderBook *pb.OkxOrderBook
 				if ob.InstType == config.FuturesInstrument {
-					bboOb := globalContext.OkxSpotBboComposite.GetOrderBook(ob.InstID)
-					l250Ob := globalContext.OkxSpotBooks50L2Composite.GetOrderBook(ob.InstID)
-					l2Ob := globalContext.OkxSpotL2Composite.GetOrderBook(ob.InstID)
-					orderBook = genOrderBooks(10, bboOb, l250Ob, l2Ob)
-				} else if ob.InstType == config.SpotInstrument {
 					bboOb := globalContext.OkxFuturesBboComposite.GetOrderBook(ob.InstID)
 					l250Ob := globalContext.OkxFuturesBooks50L2Composite.GetOrderBook(ob.InstID)
 					l2Ob := globalContext.OkxFuturesL2Composite.GetOrderBook(ob.InstID)
 					orderBook = genOrderBooks(10, bboOb, l250Ob, l2Ob)
+				} else if ob.InstType == config.SpotInstrument {
+					bboOb := globalContext.OkxSpotBboComposite.GetOrderBook(ob.InstID)
+					l250Ob := globalContext.OkxSpotBooks50L2Composite.GetOrderBook(ob.InstID)
+					l2Ob := globalContext.OkxSpotL2Composite.GetOrderBook(ob.InstID)
+					orderBook = genOrderBooks(10, bboOb, l250Ob, l2Ob)
+				}
+				if orderBook == nil {
+					continue
 				}
 				orderBook.InstID = ob.InstID
 				orderBook.InstType = string(ob.InstType)
-
 				data, err := proto.Marshal(orderBook)
 				if err != nil {
 					logger.Error("[ZMQ] Error marshaling OrderBook: %v", err)
@@ -132,6 +134,9 @@ func startOrderBookZmq(cfg *config.Config, globalContext *context.GlobalContext)
 }
 
 func genOrderBooks(limit int, bboOb, l250Ob, l2Ob *container.OrderBook) *pb.OkxOrderBook {
+	if bboOb == nil || l250Ob == nil || l2Ob == nil {
+		return nil
+	}
 	var ob *pb.OkxOrderBook
 	if l250Ob.UpdateTime() <= l2Ob.UpdateTime() {
 		// l2Ob的数据新

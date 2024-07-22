@@ -39,9 +39,9 @@ func StartGatherOkxFuturesTicker(tickChan chan *public.Tickers, globalContext *c
 				tickerMsg := convertToOkxTickerMessage(t)
 				result := globalContext.OkxFuturesTickerComposite.UpdateTicker(tickerMsg)
 				if result {
-					// todo 更新zmq消息
+					logger.Debug("FUTURES|CHANNEL|Ticker")
+					globalContext.TickerUpdateChan <- &tickerMsg
 				}
-
 			}
 			if r.Int31n(10000) < 5 && len(s.Tickers) > 0 {
 				logger.Info("[GatherFTicker] Receive Okx Futures Ticker %+v\n", s.Tickers[0])
@@ -65,7 +65,8 @@ func StartGatherOkxSpotTicker(tickChan chan *public.Tickers, globalContext *cont
 				tickerMsg := convertToOkxTickerMessage(t)
 				result := globalContext.OkxSpotTickerComposite.UpdateTicker(tickerMsg)
 				if result {
-					// todo 更新zmq消息
+					logger.Debug("SPOT|CHANNEL|Ticker")
+					globalContext.TickerUpdateChan <- &tickerMsg
 				}
 			}
 			if r.Int31n(10000) < 5 && len(s.Tickers) > 0 {
