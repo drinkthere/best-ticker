@@ -83,7 +83,7 @@ func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool
 		localChecksum := crc32.ChecksumIEEE([]byte(payload))
 
 		if int32(localChecksum) != checkSum {
-			logger.Error("[Depth Update] Checksum does not match. localChecksum(%d)!=checksum(%d)", localChecksum, checkSum)
+			logger.Warn("[Depth Update] Checksum does not match. localChecksum(%d)!=checksum(%d)", localChecksum, checkSum)
 			return false
 		}
 	}

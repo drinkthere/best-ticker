@@ -57,13 +57,13 @@ func (context *GlobalContext) initOrderBookComposite(globalConfig *config.Config
 
 	spotWrapper := &container.OrderBookCompositeWrapper{}
 	spotWrapper.Init(config.OkxExchange, config.SpotInstrument, globalConfig.Sources)
-	context.OkxSpotOrderBookCompositeWrapper = futuresWrapper
+	context.OkxSpotOrderBookCompositeWrapper = spotWrapper
 
 	futuresFastWrapper := &container.FastestChannelSourceWrapper{}
 	futuresFastWrapper.Init(config.OkxExchange, config.FuturesInstrument, context.InstrumentComposite.InstIDs)
 	context.OkxFuturesFastestSourceWrapper = futuresFastWrapper
 
 	spotFastWrapper := &container.FastestChannelSourceWrapper{}
-	spotFastWrapper.Init(config.OkxExchange, config.SpotInstrument, context.InstrumentComposite.InstIDs)
+	spotFastWrapper.Init(config.OkxExchange, config.SpotInstrument, context.InstrumentComposite.SpotInstIDs)
 	context.OkxSpotFastestSourceWrapper = spotFastWrapper
 }

@@ -104,28 +104,46 @@ func startOrderBookZmq(cfg *config.Config, globalContext *context.GlobalContext)
 				if ob.InstType == config.FuturesInstrument {
 					bboSource := globalContext.OkxFuturesFastestSourceWrapper.GetFastestOrderBookSource(config.BboTbtChannel, ob.InstID)
 					bboComposite := globalContext.OkxFuturesOrderBookCompositeWrapper.GetOrderBookComposite(bboSource.IP, bboSource.Colo, config.BboTbtChannel)
+					if bboComposite == nil {
+						continue
+					}
 					bboOb := bboComposite.GetOrderBook(ob.InstID)
 
 					l250Source := globalContext.OkxFuturesFastestSourceWrapper.GetFastestOrderBookSource(config.Books50L2TbtChannel, ob.InstID)
 					l250Composite := globalContext.OkxFuturesOrderBookCompositeWrapper.GetOrderBookComposite(l250Source.IP, l250Source.Colo, config.Books50L2TbtChannel)
+					if l250Composite == nil {
+						continue
+					}
 					l250Ob := l250Composite.GetOrderBook(ob.InstID)
 
 					l2Source := globalContext.OkxFuturesFastestSourceWrapper.GetFastestOrderBookSource(config.BooksL2TbtChannel, ob.InstID)
 					l2Composite := globalContext.OkxFuturesOrderBookCompositeWrapper.GetOrderBookComposite(l2Source.IP, l2Source.Colo, config.BooksL2TbtChannel)
+					if l2Composite == nil {
+						continue
+					}
 					l2Ob := l2Composite.GetOrderBook(ob.InstID)
 
 					orderBook = genOrderBooks(10, bboOb, l250Ob, l2Ob)
 				} else if ob.InstType == config.SpotInstrument {
 					bboSource := globalContext.OkxSpotFastestSourceWrapper.GetFastestOrderBookSource(config.BboTbtChannel, ob.InstID)
 					bboComposite := globalContext.OkxSpotOrderBookCompositeWrapper.GetOrderBookComposite(bboSource.IP, bboSource.Colo, config.BboTbtChannel)
+					if bboComposite == nil {
+						continue
+					}
 					bboOb := bboComposite.GetOrderBook(ob.InstID)
 
 					l250Source := globalContext.OkxSpotFastestSourceWrapper.GetFastestOrderBookSource(config.Books50L2TbtChannel, ob.InstID)
 					l250Composite := globalContext.OkxSpotOrderBookCompositeWrapper.GetOrderBookComposite(l250Source.IP, l250Source.Colo, config.Books50L2TbtChannel)
+					if l250Composite == nil {
+						continue
+					}
 					l250Ob := l250Composite.GetOrderBook(ob.InstID)
 
 					l2Source := globalContext.OkxSpotFastestSourceWrapper.GetFastestOrderBookSource(config.BooksL2TbtChannel, ob.InstID)
 					l2Composite := globalContext.OkxSpotOrderBookCompositeWrapper.GetOrderBookComposite(l2Source.IP, l2Source.Colo, config.BooksL2TbtChannel)
+					if l2Composite == nil {
+						continue
+					}
 					l2Ob := l2Composite.GetOrderBook(ob.InstID)
 					orderBook = genOrderBooks(10, bboOb, l250Ob, l2Ob)
 				}

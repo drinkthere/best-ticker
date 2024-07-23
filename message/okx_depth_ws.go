@@ -34,6 +34,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 
 	r := rand.New(rand.NewSource(2))
 	depthChan := make(chan *public.OrderBook)
+	unsubscribing := false
 	go func() {
 		defer func() {
 			logger.Warn("[FDepthWebSocket] Okx Futures Channel Listening Exited.")
@@ -76,8 +77,10 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 					logger.Info("[FDepthWebSocket] Futures Subscribe %s %s %s", localIP, instID, currCh)
 				case usub := <-uSubChan:
 					instID, _ := usub.Arg.Get("instId")
-					logger.Info("[FDepthWebSocket] Futures Unsubscribe %s %s %s", localIP, instID, currCh)
+					logger.Warn("[FDepthWebSocket] Futures Unsubscribe %s %s %s", localIP, instID, currCh)
 					time.Sleep(time.Minute * 1)
+					logger.Info("unsubscribing is %t", unsubscribing)
+					unsubscribing = false
 					goto ReSubscribe
 				case err := <-errChan:
 					logger.Error("[FDepthWebSocket] Futures Occur Some Error %s %s %+v", localIP, currCh, err)
@@ -94,10 +97,15 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 						obMsg := convertToObMsg(localIP, isColo, channel, instID, instType, action, b)
 						result := updateOrderBook(obMsg, globalContext)
 						if !result {
-							okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
-								InstID:  instID,
-								Channel: currCh,
-							})
+							if unsubscribing {
+								continue
+							} else {
+								unsubscribing = true
+								okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
+									InstID:  instID,
+									Channel: currCh,
+								})
+							}
 						} else {
 							if r.Int31n(10000) < 5 {
 								orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
@@ -121,13 +129,14 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 
 func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
 	isColo bool, localIP string, channel config.Channel) {
+
+	r := rand.New(rand.NewSource(2))
+	depthChan := make(chan *public.OrderBook)
+	unsubscribing := false
 	go func() {
 		defer func() {
 			logger.Warn("[SDepthWebSocket] Okx Spot Depth Listening Exited.")
 		}()
-
-		r := rand.New(rand.NewSource(2))
-		depthChan := make(chan *public.OrderBook)
 		for {
 		ReConnect:
 			errChan := make(chan *events.Error)
@@ -167,8 +176,10 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 					logger.Info("[SDepthWebSocket] Spot Subscribe %s %s %s", localIP, instID, currCh)
 				case usub := <-uSubChan:
 					instID, _ := usub.Arg.Get("instId")
-					logger.Info("[SDepthWebSocket] Spot Unsubscribe %s %s %s", localIP, instID, currCh)
+					logger.Warn("[SDepthWebSocket] Spot Unsubscribe %s %s %s", localIP, instID, currCh)
 					time.Sleep(time.Minute * 1)
+					logger.Info("unsubscribing is %t", unsubscribing)
+					unsubscribing = false
 					goto ReSubscribe
 				case err := <-errChan:
 					logger.Error("[SDepthWebSocket] Spot Occur Some Error %s %s %+v", localIP, currCh, err)
@@ -185,10 +196,15 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 						obMsg := convertToObMsg(localIP, isColo, channel, instID, instType, action, b)
 						result := updateOrderBook(obMsg, globalContext)
 						if !result {
-							okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
-								InstID:  instID,
-								Channel: currCh,
-							})
+							if unsubscribing {
+								continue
+							} else {
+								unsubscribing = true
+								okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
+									InstID:  instID,
+									Channel: currCh,
+								})
+							}
 						} else {
 							if r.Int31n(10000) < 5 {
 								orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
@@ -303,7 +319,6 @@ func updateOrderBook(obMsg container.OrderBookMsg, globalContext *context.Global
 		if updateResult {
 			// 更新当前channel最快的信息
 			globalContext.OkxFuturesFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo)
-
 			globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
 				Channel:  obMsg.Channel,
 				InstID:   obMsg.InstID,
