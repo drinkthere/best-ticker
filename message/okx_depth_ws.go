@@ -156,9 +156,9 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 				}, depthChan)
 
 				if err != nil {
-					logger.Fatal("[SDepthWebSocket] Fail To Listen Futures Depth For %s %s %s %s", localIP, instID, currCh, err.Error())
+					logger.Fatal("[SDepthWebSocket] Fail To Listen Spot Depth For %s %s %s %s", localIP, instID, currCh, err.Error())
 				} else {
-					logger.Info("[SDepthWebSocket] Futures Depth WebSocket Has Established For %s %s %s", localIP, instID, currCh)
+					logger.Info("[SDepthWebSocket] Spot Depth WebSocket Has Established For %s %s %s", localIP, instID, currCh)
 				}
 			}
 
@@ -169,7 +169,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 					logger.Info("[SDepthWebSocket] Spot Subscribe %s %s %s", localIP, instID, currCh)
 				case usub := <-uSubChan:
 					instID, _ := usub.Arg.Get("instId")
-					logger.Info("[SDepthWebSocket] Futures Unsubscribe %s %s %s", localIP, instID, currCh)
+					logger.Info("[SDepthWebSocket] Spot Unsubscribe %s %s %s", localIP, instID, currCh)
 					time.Sleep(time.Second * 30)
 					goto ReSubscribe
 				case err := <-errChan:
