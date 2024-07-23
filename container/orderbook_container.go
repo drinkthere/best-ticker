@@ -4,6 +4,7 @@ import (
 	"best-ticker/config"
 	"best-ticker/protocol/pb"
 	"best-ticker/utils/logger"
+	"fmt"
 	"github.com/drinkthere/okx/models/market"
 	"hash/crc32"
 	"sort"
@@ -271,33 +272,37 @@ func (ob *OrderBook) LimitDepth(limit int) *pb.OkxOrderBook {
 }
 
 type OrderBookMsg struct {
-	Exchange     config.Exchange
-	InstType     config.InstrumentType
+	IP           string
+	Colo         bool
 	Channel      config.Channel
+	Exchange     config.Exchange
 	InstID       string
+	InstType     config.InstrumentType
 	Action       string
 	OrderBookMsg *market.OrderBookWs
 }
 
 type OrderBookComposite struct {
-	Exchange          config.Exchange
-	InstType          config.InstrumentType
-	Channel           config.Channel
-	orderBookWrappers map[string]OrderBook
-	rwLock            *sync.RWMutex
+	Exchange      config.Exchange
+	InstType      config.InstrumentType
+	Channel       config.Channel
+	OrderBooksMap map[string]OrderBook
+	rwLock        *sync.RWMutex
 }
 
-func (composite *OrderBookComposite) Init(exchange config.Exchange, instType config.InstrumentType, channel config.Channel) {
-	composite.Exchange = exchange
-	composite.InstType = instType
-	composite.Channel = channel
-	composite.orderBookWrappers = map[string]OrderBook{}
-	composite.rwLock = new(sync.RWMutex)
+func NewOrderBookComposite(exchange config.Exchange, instType config.InstrumentType, channel config.Channel) *OrderBookComposite {
+	return &OrderBookComposite{
+		Exchange:      exchange,
+		InstType:      instType,
+		Channel:       channel,
+		OrderBooksMap: map[string]OrderBook{},
+		rwLock:        &sync.RWMutex{},
+	}
 }
 
 func (composite *OrderBookComposite) GetOrderBook(instID string) *OrderBook {
 	composite.rwLock.RLock()
-	ob, has := composite.orderBookWrappers[instID]
+	ob, has := composite.OrderBooksMap[instID]
 	composite.rwLock.RUnlock()
 
 	if has {
@@ -315,15 +320,111 @@ func (composite *OrderBookComposite) UpdateOrderBook(message OrderBookMsg) bool 
 	if composite.Exchange != message.Exchange || composite.InstType != message.InstType || composite.Channel != message.Channel {
 		return updateResult
 	}
-	orderBook, has := composite.orderBookWrappers[message.InstID]
+	orderBook, has := composite.OrderBooksMap[message.InstID]
 
 	if !has {
 		ob := NewOrderBook()
 		updateResult = ob.update(composite.Channel, message.Action, message.OrderBookMsg)
-		composite.orderBookWrappers[message.InstID] = *ob
+		composite.OrderBooksMap[message.InstID] = *ob
 	} else {
 		updateResult = orderBook.update(composite.Channel, message.Action, message.OrderBookMsg)
-		composite.orderBookWrappers[message.InstID] = orderBook
+		composite.OrderBooksMap[message.InstID] = orderBook
 	}
 	return updateResult
+}
+
+type OrderBookCompositeWrapper struct {
+	Exchange              config.Exchange
+	InstType              config.InstrumentType
+	OrderBookCompositeMap map[string]*OrderBookComposite
+	rwLock                *sync.RWMutex
+}
+
+func (ocw *OrderBookCompositeWrapper) Init(exchange config.Exchange, instType config.InstrumentType, sources []config.Source) {
+	ocw.Exchange = exchange
+	ocw.InstType = instType
+	ocw.OrderBookCompositeMap = map[string]*OrderBookComposite{}
+	ocw.rwLock = new(sync.RWMutex)
+
+	ocw.rwLock.RLock()
+	defer ocw.rwLock.RUnlock()
+	for _, source := range sources {
+		for _, channel := range source.Channels {
+			key := genOrderBookCompositeKey(source.IP, source.Colo, channel)
+			ocw.OrderBookCompositeMap[key] = NewOrderBookComposite(exchange, instType, channel)
+		}
+	}
+}
+
+func (ocw *OrderBookCompositeWrapper) GetOrderBookComposite(ip string, colo bool, channel config.Channel) *OrderBookComposite {
+	key := genOrderBookCompositeKey(ip, colo, channel)
+	ocw.rwLock.RLock()
+	obc, has := ocw.OrderBookCompositeMap[key]
+	ocw.rwLock.RUnlock()
+
+	if has {
+		return obc
+	} else {
+		return nil
+	}
+}
+
+func genOrderBookCompositeKey(ip string, colo bool, channel config.Channel) string {
+	return fmt.Sprintf("%s_%s_%s", ip, strconv.FormatBool(colo), channel)
+}
+
+type FastestChannelSource struct {
+	IP   string
+	Colo bool
+}
+
+type FastestChannelSourceWrapper struct {
+	Exchange   config.Exchange
+	InstType   config.InstrumentType
+	FastestMap map[string]FastestChannelSource
+	rwLock     *sync.RWMutex
+}
+
+func (f *FastestChannelSourceWrapper) Init(exchange config.Exchange, instType config.InstrumentType, instIDs []string) {
+	f.Exchange = exchange
+	f.InstType = instType
+	f.FastestMap = map[string]FastestChannelSource{}
+	f.rwLock = new(sync.RWMutex)
+
+	f.rwLock.RLock()
+	defer f.rwLock.RUnlock()
+	channels := []config.Channel{config.BboTbtChannel, config.BooksL2TbtChannel, config.Books50L2TbtChannel}
+	for _, channel := range channels {
+		for _, instID := range instIDs {
+			key := genFastestOrderBookKey(channel, instID)
+			f.FastestMap[key] = FastestChannelSource{}
+		}
+	}
+}
+
+func (f *FastestChannelSourceWrapper) GetFastestOrderBookSource(channel config.Channel, instID string) FastestChannelSource {
+	key := genFastestOrderBookKey(channel, instID)
+	f.rwLock.RLock()
+	obc, has := f.FastestMap[key]
+	f.rwLock.RUnlock()
+
+	if has {
+		return obc
+	} else {
+		return FastestChannelSource{}
+	}
+}
+
+func (f *FastestChannelSourceWrapper) UpdateFastestOrderBookSource(channel config.Channel, instID string, ip string, isColo bool) {
+	key := genFastestOrderBookKey(channel, instID)
+	f.rwLock.RLock()
+	f.FastestMap[key] = FastestChannelSource{
+		IP:   ip,
+		Colo: isColo,
+	}
+	f.rwLock.RUnlock()
+}
+
+func genFastestOrderBookKey(channel config.Channel, instID string) string {
+	return fmt.Sprintf("%s_%s", channel, instID)
 }

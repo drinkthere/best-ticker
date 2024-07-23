@@ -13,6 +13,7 @@ type OkxConfig struct {
 }
 
 type Source struct {
+	Exchange  Exchange  // 交易所
 	IP        string    // local IP to connect to OKx websocket
 	Colo      bool      // is co-location with Okx
 	Channels  []Channel // 改IP下需要订阅的channel
