@@ -50,9 +50,6 @@ func (ob *OrderBook) update(channel config.Channel, action string, bookChange *m
 }
 
 func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool {
-	ob.mu.Lock()
-	defer ob.mu.Unlock()
-
 	// logger.Info("prevSeqId=%d, seqId=%d", bookChange.PrevSeqID, bookChange.SeqID)
 	bids := parseOrders(bookChange.Bids, config.DescSortType)
 	asks := parseOrders(bookChange.Asks, config.AscSortType)
@@ -79,11 +76,10 @@ func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool
 		}
 
 		payload := strings.Join(payloadArray, ":")
-		//logger.Info("checksum payload is %s", payload)
 		localChecksum := crc32.ChecksumIEEE([]byte(payload))
 
 		if int32(localChecksum) != checkSum {
-			logger.Warn("[Depth Update] Checksum does not match. localChecksum(%d)!=checksum(%d)", localChecksum, checkSum)
+			logger.Warn("[Depth Update] Checksum does not match. checksum=%d", checkSum)
 			return false
 		}
 	}
@@ -166,8 +162,6 @@ func (ob *OrderBook) handleDeltas(bids []*market.OrderBookEntity, asks []*market
 }
 
 func (ob *OrderBook) reset(bookChange *market.OrderBookWs) {
-	ob.mu.Lock()
-	defer ob.mu.Unlock()
 	ob.bids = parseOrders(bookChange.Bids, config.DescSortType)
 	ob.asks = parseOrders(bookChange.Asks, config.AscSortType)
 	ob.updateTimeMs = time.Time(bookChange.TS).UnixMilli()
@@ -213,6 +207,18 @@ func (ob *OrderBook) UpdateTime() int64 {
 	ob.mu.RLock()
 	defer ob.mu.RUnlock()
 	return ob.updateTimeMs
+}
+
+func (ob *OrderBook) AsksLength() int {
+	ob.mu.RLock()
+	defer ob.mu.RUnlock()
+	return len(ob.asks)
+}
+
+func (ob *OrderBook) BidsLength() int {
+	ob.mu.RLock()
+	defer ob.mu.RUnlock()
+	return len(ob.bids)
 }
 
 type PublicOrderBook struct {
@@ -321,8 +327,8 @@ func (composite *OrderBookComposite) UpdateOrderBook(message OrderBookMsg) bool 
 		return updateResult
 	}
 	orderBook, has := composite.OrderBooksMap[message.InstID]
-
 	if !has {
+		logger.Warn("orderBook is not exists. %s %t %s %s %s", message.IP, message.Colo, message.InstID, message.InstType, message.Channel)
 		ob := NewOrderBook()
 		updateResult = ob.update(composite.Channel, message.Action, message.OrderBookMsg)
 		composite.OrderBooksMap[message.InstID] = *ob

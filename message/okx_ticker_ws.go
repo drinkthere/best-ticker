@@ -19,6 +19,7 @@ func StartOkxTickerWs(cfg *config.Config, globalContext *context.GlobalContext,
 		logger.Info("[FTickerWebSocket] Start Listen Okx Futures Tickers, isColo:%t, ip:%s", source.Colo, source.IP)
 		startOkxSpotTickers(&source.OkxConfig, globalContext, source.Colo, source.IP, okxSpotTickerChan)
 		logger.Info("[STickerWebSocket] Start Listen Okx Spot Tickers, isColo:%t, ip:%s", source.Colo, source.IP)
+		time.Sleep(1 * time.Second)
 	}
 }
 

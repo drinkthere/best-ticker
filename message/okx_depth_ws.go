@@ -11,6 +11,7 @@ import (
 	"github.com/drinkthere/okx/models/market"
 	wsRequestPublic "github.com/drinkthere/okx/requests/ws/public"
 	"math/rand"
+	"sync"
 	"time"
 )
 
@@ -18,12 +19,8 @@ func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext) {
 	for _, source := range cfg.Sources {
 		for _, channel := range source.Channels {
 			// 循环不同的IP，监听不同的depth channel
-			startOkxFuturesDepths(&source.OkxConfig, globalContext, source.Colo, source.IP, channel)
-			logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel, isColo:%t, ip:%s, channel=%s", source.Colo, source.IP, channel)
-
-			startOkxSpotDepths(&source.OkxConfig, globalContext, source.Colo, source.IP, channel)
-			logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel, isColo:%t, ip:%s, channel=%s", source.Colo, source.IP, channel)
-
+			startOkxFuturesDepths(&source.OkxConfig, globalContext, source.Colo, source.IP, channel) // futures
+			startOkxSpotDepths(&source.OkxConfig, globalContext, source.Colo, source.IP, channel)    // spot
 			time.Sleep(1 * time.Second)
 		}
 	}
@@ -34,11 +31,14 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 
 	r := rand.New(rand.NewSource(2))
 	depthChan := make(chan *public.OrderBook)
-	unsubscribing := false
+	seqIDMap := make(map[string]int64, len(globalContext.InstrumentComposite.InstIDs))
+	mu := sync.RWMutex{}
 	go func() {
 		defer func() {
 			logger.Warn("[FDepthWebSocket] Okx Futures Channel Listening Exited.")
 		}()
+
+		logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel, isColo:%t, ip:%s, channel=%s", isColo, localIP, channel)
 		for {
 		ReConnect:
 			errChan := make(chan *events.Error)
@@ -58,8 +58,12 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 
 			okxClient.Client.Ws.SetChannels(errChan, subChan, uSubChan, loginCh, successCh)
 			currCh := string(channel)
-		ReSubscribe:
+
 			for _, instID := range globalContext.InstrumentComposite.InstIDs {
+				// 默认第一条全量消息（snapshort）的seqID是-1
+				mu.Lock()
+				seqIDMap[instID] = -1
+				mu.Unlock()
 				err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
 					InstID:  instID,
 					Channel: currCh,
@@ -74,14 +78,32 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 				select {
 				case sub := <-subChan:
 					instID, _ := sub.Arg.Get("instId")
-					logger.Info("[FDepthWebSocket] Futures Subscribe %s %s %s", localIP, instID, currCh)
+					logger.Warn("[FDepthWebSocket] Futures Subscribe %s %s %s", localIP, instID, currCh)
 				case usub := <-uSubChan:
-					instID, _ := usub.Arg.Get("instId")
+					instIDRaw, _ := usub.Arg.Get("instId")
+					instID := instIDRaw.(string)
 					logger.Warn("[FDepthWebSocket] Futures Unsubscribe %s %s %s", localIP, instID, currCh)
-					time.Sleep(time.Minute * 1)
-					logger.Info("unsubscribing is %t", unsubscribing)
-					unsubscribing = false
-					goto ReSubscribe
+
+					// 停一段时间之后再重新订阅
+					go func() {
+						time.Sleep(time.Minute * 1)
+						logger.Warn("[FDepthWebSocket] Will Subscribe %s %s %s After 1 Minute", localIP, instID, currCh)
+
+						// 重置seqID
+						mu.Lock()
+						seqIDMap[instID] = -1
+						mu.Unlock()
+
+						err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
+							InstID:  instID,
+							Channel: currCh,
+						}, depthChan)
+						if err != nil {
+							logger.Fatal("[FDepthWebSocket] Fail To Listen Futures Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
+						} else {
+							logger.Info("[FDepthWebSocket] Futures Depth WebSocket Has Established For %s %s %s", localIP, instID, currCh)
+						}
+					}()
 				case err := <-errChan:
 					logger.Error("[FDepthWebSocket] Futures Occur Some Error %s %s %+v", localIP, currCh, err)
 				case s := <-successCh:
@@ -91,27 +113,54 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 						// update orderbook
 						instIDRaw, _ := s.Arg.Get("instId")
 						instID := instIDRaw.(string)
-						action := s.Action
 
-						instType := config.FuturesInstrument
-						obMsg := convertToObMsg(localIP, isColo, channel, instID, instType, action, b)
-						result := updateOrderBook(obMsg, globalContext)
-						if !result {
-							if unsubscribing {
-								continue
+						// 获取seqID 并进行对比
+						mu.RLock()
+						currSeqID := seqIDMap[instID]
+						mu.RUnlock()
+
+						// 如果是取消订阅中，则该消息已经无用，直接跳过
+						if currSeqID != -2 {
+							action := s.Action
+							instType := config.FuturesInstrument
+
+							// bbo-tbt 没有seqID，无需校验; 否则需要确保上一条消息的seqID = 本条消息的prevSeqId
+							if currSeqID == b.PrevSeqID || channel == config.BboTbtChannel {
+
+								// 更新sqlIDMap
+								if b.SeqID != 0 {
+									currSeqID = b.SeqID
+								}
+								mu.Lock()
+								seqIDMap[instID] = currSeqID
+								mu.Unlock()
+
+								obMsg := convertToObMsg(localIP, isColo, channel, instID, instType, action, b)
+								result := updateOrderBook(obMsg, globalContext)
+								if !result {
+									logger.Warn("%s %s %s %s checksum=%d", localIP, instID, currCh, instType, obMsg.OrderBookMsg.Checksum)
+									okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
+										InstID:  instID,
+										Channel: currCh,
+									})
+								} else {
+									if r.Int31n(10000) < 5 {
+										orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
+										logger.Info("[GatherFDepth] %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instType, channel, orderBook.BestBid(), orderBook.BestAsk())
+									}
+									checkToUpdateTicker(localIP, isColo, channel, instID, instType, globalContext)
+								}
+
 							} else {
-								unsubscribing = true
+								logger.Warn("%d!=%d", seqIDMap[instID], b.PrevSeqID)
+								mu.Lock()
+								seqIDMap[instID] = -2
+								mu.Unlock()
 								okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
 									InstID:  instID,
 									Channel: currCh,
 								})
 							}
-						} else {
-							if r.Int31n(10000) < 5 {
-								orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
-								logger.Info("[GatherFDepth] %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instType, channel, orderBook.BestBid(), orderBook.BestAsk())
-							}
-							checkToUpdateTicker(localIP, isColo, channel, instID, instType, globalContext)
 						}
 					}
 				case b := <-okxClient.Client.Ws.DoneChan:
@@ -132,11 +181,15 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 
 	r := rand.New(rand.NewSource(2))
 	depthChan := make(chan *public.OrderBook)
-	unsubscribing := false
+	seqIDMap := make(map[string]int64, len(globalContext.InstrumentComposite.SpotInstIDs))
+	mu := sync.RWMutex{}
 	go func() {
 		defer func() {
 			logger.Warn("[SDepthWebSocket] Okx Spot Depth Listening Exited.")
 		}()
+
+		logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel, isColo:%t, ip:%s, channel=%s", isColo, localIP, channel)
+
 		for {
 		ReConnect:
 			errChan := make(chan *events.Error)
@@ -155,15 +208,19 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 			}
 			okxClient.Client.Ws.SetChannels(errChan, subChan, uSubChan, loginCh, successCh)
 			currCh := string(channel)
-		ReSubscribe:
+
 			for _, instID := range globalContext.InstrumentComposite.SpotInstIDs {
+				// 默认第一条全量消息（snapshort）的seqID是-1
+				mu.Lock()
+				seqIDMap[instID] = -1
+				mu.Unlock()
 				err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
 					InstID:  instID,
 					Channel: currCh,
 				}, depthChan)
 
 				if err != nil {
-					logger.Fatal("[SDepthWebSocket] Fail To Listen Spot Depth For %s %s %s %s", localIP, instID, currCh, err.Error())
+					logger.Fatal("[SDepthWebSocket] Fail To Listen Spot Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
 				} else {
 					logger.Info("[SDepthWebSocket] Spot Depth WebSocket Has Established For %s %s %s", localIP, instID, currCh)
 				}
@@ -175,12 +232,30 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 					instID, _ := sub.Arg.Get("instId")
 					logger.Info("[SDepthWebSocket] Spot Subscribe %s %s %s", localIP, instID, currCh)
 				case usub := <-uSubChan:
-					instID, _ := usub.Arg.Get("instId")
+					instIDRaw, _ := usub.Arg.Get("instId")
+					instID := instIDRaw.(string)
 					logger.Warn("[SDepthWebSocket] Spot Unsubscribe %s %s %s", localIP, instID, currCh)
-					time.Sleep(time.Minute * 1)
-					logger.Info("unsubscribing is %t", unsubscribing)
-					unsubscribing = false
-					goto ReSubscribe
+
+					// 停一段时间之后再重新订阅
+					go func() {
+						time.Sleep(time.Minute * 1)
+						logger.Warn("[SDepthWebSocket] Will Subscribe %s %s %s After 1 Minute", localIP, instID, currCh)
+
+						// 重置seqID
+						mu.Lock()
+						seqIDMap[instID] = -1
+						mu.Unlock()
+
+						err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
+							InstID:  instID,
+							Channel: currCh,
+						}, depthChan)
+						if err != nil {
+							logger.Fatal("[SDepthWebSocket] Fail To Listen Spot Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
+						} else {
+							logger.Info("[SDepthWebSocket] Spot Depth WebSocket Has Established For %s %s %s", localIP, instID, currCh)
+						}
+					}()
 				case err := <-errChan:
 					logger.Error("[SDepthWebSocket] Spot Occur Some Error %s %s %+v", localIP, currCh, err)
 				case s := <-successCh:
@@ -190,27 +265,52 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 						// update orderbook
 						instIDRaw, _ := s.Arg.Get("instId")
 						instID := instIDRaw.(string)
-						action := s.Action
 
-						instType := config.SpotInstrument
-						obMsg := convertToObMsg(localIP, isColo, channel, instID, instType, action, b)
-						result := updateOrderBook(obMsg, globalContext)
-						if !result {
-							if unsubscribing {
-								continue
+						// 获取seqID 并进行对比
+						mu.RLock()
+						currSeqID := seqIDMap[instID]
+						mu.RUnlock()
+
+						// 如果是取消订阅中，则该消息已经无用，直接跳过
+						if currSeqID != -2 {
+							action := s.Action
+							instType := config.SpotInstrument
+
+							// bbo-tbt 没有seqID，无需校验; 否则需要确保上一条消息的seqID = 本条消息的prevSeqId
+							if currSeqID == b.PrevSeqID || channel == config.BboTbtChannel {
+								// 更新sqlIDMap
+								if b.SeqID != 0 {
+									currSeqID = b.SeqID
+								}
+								mu.Lock()
+								seqIDMap[instID] = currSeqID
+								mu.Unlock()
+
+								obMsg := convertToObMsg(localIP, isColo, channel, instID, instType, action, b)
+								result := updateOrderBook(obMsg, globalContext)
+								if !result {
+									logger.Warn("%s %s %s %s checksum=%d", localIP, instID, currCh, instType, obMsg.OrderBookMsg.Checksum)
+									okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
+										InstID:  instID,
+										Channel: currCh,
+									})
+								} else {
+									if r.Int31n(10000) < 5 {
+										orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
+										logger.Info("[GatherSDepth] %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instType, channel, orderBook.BestBid(), orderBook.BestAsk())
+									}
+									checkToUpdateTicker(localIP, isColo, channel, instID, instType, globalContext)
+								}
 							} else {
-								unsubscribing = true
+								logger.Warn("%d!=%d", seqIDMap[instID], b.PrevSeqID)
+								mu.Lock()
+								seqIDMap[instID] = -2
+								mu.Unlock()
 								okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
 									InstID:  instID,
 									Channel: currCh,
 								})
 							}
-						} else {
-							if r.Int31n(10000) < 5 {
-								orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
-								logger.Info("[GatherFDepth] %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instType, channel, orderBook.BestBid(), orderBook.BestAsk())
-							}
-							checkToUpdateTicker(localIP, isColo, channel, instID, instType, globalContext)
 						}
 					}
 				case b := <-okxClient.Client.Ws.DoneChan:
@@ -228,9 +328,9 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 func checkToUpdateTicker(localIP string, isColo bool, channel config.Channel, instID string, instType config.InstrumentType, globalContext *context.GlobalContext) {
 	// b.TS > ticker.TS && ticker changed, update ticker
 	ticker := getTicker(instID, instType, globalContext)
+	//logger.Info("instID is %s, instType is %s, ticker is %+v", instID, instType, ticker)
 	orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
 	if orderBook == nil || ticker == nil {
-		logger.Info("orderBook is nil or ticker is nil")
 		return
 	}
 
@@ -319,6 +419,10 @@ func updateOrderBook(obMsg container.OrderBookMsg, globalContext *context.Global
 		if updateResult {
 			// 更新当前channel最快的信息
 			globalContext.OkxFuturesFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo)
+			// if obMsg.Channel != config.BboTbtChannel {
+			// 	logger.Info("ob updated, instId=%s, channel=%s", obMsg.InstID, obMsg.Channel)
+			// }
+
 			globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
 				Channel:  obMsg.Channel,
 				InstID:   obMsg.InstID,
