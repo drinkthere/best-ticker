@@ -6,6 +6,7 @@ message OkxOrderBook {
   repeated OkxOrder bids = 3;
   repeated OkxOrder asks = 4;
   int64 updateTimeMs = 5;
+  int64 seqID = 6;
 }
 
 message OkxOrder {

@@ -24,6 +24,7 @@ type OrderBook struct {
 	asks         []*market.OrderBookEntity
 	mu           *sync.RWMutex
 	updateTimeMs int64
+	seqID        int64
 }
 
 func NewOrderBook() *OrderBook {
@@ -32,6 +33,7 @@ func NewOrderBook() *OrderBook {
 		asks:         make([]*market.OrderBookEntity, 0),
 		mu:           &sync.RWMutex{},
 		updateTimeMs: 0,
+		seqID:        0,
 	}
 }
 
@@ -56,6 +58,7 @@ func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool
 	if len(bids) == 0 && len(asks) == 0 {
 		// data not update, just update seqID
 		ob.updateTimeMs = time.Time(bookChange.TS).UnixMilli()
+		ob.seqID = bookChange.SeqID
 		return true
 	}
 
@@ -85,6 +88,7 @@ func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool
 	}
 
 	ob.updateTimeMs = time.Time(bookChange.TS).UnixMilli()
+	ob.seqID = bookChange.SeqID
 	return true
 }
 
@@ -165,6 +169,7 @@ func (ob *OrderBook) reset(bookChange *market.OrderBookWs) {
 	ob.bids = parseOrders(bookChange.Bids, config.DescSortType)
 	ob.asks = parseOrders(bookChange.Asks, config.AscSortType)
 	ob.updateTimeMs = time.Time(bookChange.TS).UnixMilli()
+	ob.seqID = bookChange.SeqID
 }
 
 func parseOrders(orders []*market.OrderBookEntity, sortType config.SortType) []*market.OrderBookEntity {
@@ -207,6 +212,12 @@ func (ob *OrderBook) UpdateTime() int64 {
 	ob.mu.RLock()
 	defer ob.mu.RUnlock()
 	return ob.updateTimeMs
+}
+
+func (ob *OrderBook) SeqID() int64 {
+	ob.mu.RLock()
+	defer ob.mu.RUnlock()
+	return ob.seqID
 }
 
 func (ob *OrderBook) AsksLength() int {

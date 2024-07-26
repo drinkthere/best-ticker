@@ -178,18 +178,22 @@ func genOrderBooks(limit int, bboOb, l250Ob, l2Ob *container.OrderBook) *pb.OkxO
 		if bboOb.UpdateTime() <= l2Ob.UpdateTime() {
 			ob = l2Ob.LimitDepth(limit)
 			ob.UpdateTimeMs = l2Ob.UpdateTime()
+			ob.SeqID = l2Ob.SeqID()
 		} else {
 			ob = mergeOrderBook(limit, bboOb, l2Ob)
 			ob.UpdateTimeMs = bboOb.UpdateTime()
+			ob.SeqID = bboOb.SeqID()
 		}
 	} else {
 		// l250Ob的数据新
 		if bboOb.UpdateTime() <= l250Ob.UpdateTime() {
 			ob = l250Ob.LimitDepth(limit)
 			ob.UpdateTimeMs = l250Ob.UpdateTime()
+			ob.SeqID = l250Ob.SeqID()
 		} else {
 			ob = mergeOrderBook(limit, bboOb, l250Ob)
 			ob.UpdateTimeMs = bboOb.UpdateTime()
+			ob.SeqID = bboOb.SeqID()
 		}
 	}
 	return ob
