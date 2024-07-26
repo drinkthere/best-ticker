@@ -86,8 +86,9 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 
 					// 停一段时间之后再重新订阅
 					go func() {
-						logger.Warn("[FDepthWebSocket] Will Subscribe %s %s %s After 1 Minute", localIP, instID, currCh)
-						time.Sleep(time.Minute * 1)
+
+						logger.Warn("[FDepthWebSocket] Will Subscribe %s %s %s After 30 Seconds", localIP, instID, currCh)
+						time.Sleep(time.Second * 30)
 
 						// 重置seqID
 						mu.Lock()
@@ -239,8 +240,8 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 					// 停一段时间之后再重新订阅
 					go func() {
 
-						logger.Warn("[SDepthWebSocket] Will Subscribe %s %s %s After 1 Minute", localIP, instID, currCh)
-						time.Sleep(time.Minute * 1)
+						logger.Warn("[SDepthWebSocket] Will Subscribe %s %s %s After 30 Seconds", localIP, instID, currCh)
+						time.Sleep(time.Second * 30)
 
 						// 重置seqID
 						mu.Lock()
