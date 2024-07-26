@@ -380,8 +380,9 @@ func genOrderBookCompositeKey(ip string, colo bool, channel config.Channel) stri
 }
 
 type FastestChannelSource struct {
-	IP   string
-	Colo bool
+	IP       string
+	Colo     bool
+	UpdateTs int64
 }
 
 type FastestChannelSourceWrapper struct {
@@ -421,12 +422,13 @@ func (f *FastestChannelSourceWrapper) GetFastestOrderBookSource(channel config.C
 	}
 }
 
-func (f *FastestChannelSourceWrapper) UpdateFastestOrderBookSource(channel config.Channel, instID string, ip string, isColo bool) {
+func (f *FastestChannelSourceWrapper) UpdateFastestOrderBookSource(channel config.Channel, instID string, ip string, isColo bool, updateTs int64) {
 	key := genFastestOrderBookKey(channel, instID)
 	f.rwLock.RLock()
 	f.FastestMap[key] = FastestChannelSource{
-		IP:   ip,
-		Colo: isColo,
+		IP:       ip,
+		Colo:     isColo,
+		UpdateTs: updateTs,
 	}
 	f.rwLock.RUnlock()
 }

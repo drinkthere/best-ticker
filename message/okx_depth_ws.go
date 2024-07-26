@@ -86,8 +86,8 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 
 					// 停一段时间之后再重新订阅
 					go func() {
-						time.Sleep(time.Minute * 1)
 						logger.Warn("[FDepthWebSocket] Will Subscribe %s %s %s After 1 Minute", localIP, instID, currCh)
+						time.Sleep(time.Minute * 1)
 
 						// 重置seqID
 						mu.Lock()
@@ -238,8 +238,9 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 
 					// 停一段时间之后再重新订阅
 					go func() {
-						time.Sleep(time.Minute * 1)
+
 						logger.Warn("[SDepthWebSocket] Will Subscribe %s %s %s After 1 Minute", localIP, instID, currCh)
+						time.Sleep(time.Minute * 1)
 
 						// 重置seqID
 						mu.Lock()
@@ -417,16 +418,18 @@ func updateOrderBook(obMsg container.OrderBookMsg, globalContext *context.Global
 		futuresOrderBookComposite := globalContext.OkxFuturesOrderBookCompositeWrapper.GetOrderBookComposite(obMsg.IP, obMsg.Colo, obMsg.Channel)
 		updateResult := futuresOrderBookComposite.UpdateOrderBook(obMsg)
 		if updateResult {
-			// 更新当前channel最快的信息
-			globalContext.OkxFuturesFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo)
-			// if obMsg.Channel != config.BboTbtChannel {
-			// 	logger.Info("ob updated, instId=%s, channel=%s", obMsg.InstID, obMsg.Channel)
-			// }
+			source := globalContext.OkxFuturesFastestSourceWrapper.GetFastestOrderBookSource(obMsg.Channel, obMsg.InstID)
+			updateTime := source.UpdateTs
+			//logger.Info("%d %d %t", time.Time(obMsg.OrderBookMsg.TS).UnixMilli(), updateTime, time.Time(obMsg.OrderBookMsg.TS).UnixMilli() > updateTime)
+			if time.Time(obMsg.OrderBookMsg.TS).UnixMilli() > updateTime {
+				// 更新当前channel最快的信息
+				globalContext.OkxFuturesFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo, time.Time(obMsg.OrderBookMsg.TS).UnixMilli())
 
-			globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
-				Channel:  obMsg.Channel,
-				InstID:   obMsg.InstID,
-				InstType: obMsg.InstType,
+				globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
+					Channel:  obMsg.Channel,
+					InstID:   obMsg.InstID,
+					InstType: obMsg.InstType,
+				}
 			}
 			return true
 		}
@@ -435,12 +438,18 @@ func updateOrderBook(obMsg container.OrderBookMsg, globalContext *context.Global
 		spotOrderBookComposite := globalContext.OkxSpotOrderBookCompositeWrapper.GetOrderBookComposite(obMsg.IP, obMsg.Colo, obMsg.Channel)
 		updateResult := spotOrderBookComposite.UpdateOrderBook(obMsg)
 		if updateResult {
-			globalContext.OkxSpotFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo)
+			source := globalContext.OkxSpotFastestSourceWrapper.GetFastestOrderBookSource(obMsg.Channel, obMsg.InstID)
+			updateTime := source.UpdateTs
+			//logger.Info("%d %d %t", time.Time(obMsg.OrderBookMsg.TS).UnixMilli(), updateTime, time.Time(obMsg.OrderBookMsg.TS).UnixMilli() > updateTime)
+			if time.Time(obMsg.OrderBookMsg.TS).UnixMilli() > updateTime {
+				// 更新当前channel最快的信息
+				globalContext.OkxSpotFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo, time.Time(obMsg.OrderBookMsg.TS).UnixMilli())
 
-			globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
-				Channel:  obMsg.Channel,
-				InstID:   obMsg.InstID,
-				InstType: obMsg.InstType,
+				globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
+					Channel:  obMsg.Channel,
+					InstID:   obMsg.InstID,
+					InstType: obMsg.InstType,
+				}
 			}
 			return true
 		}
