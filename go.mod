@@ -3,7 +3,7 @@ module best-ticker
 go 1.22.0
 
 require (
-	github.com/drinkthere/okx v1.0.27
+	github.com/drinkthere/okx v1.0.29
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/pebbe/zmq4 v1.2.11
 	go.uber.org/zap v1.27.0
@@ -18,4 +18,4 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 )
 
-replace github.com/drinkthere/okx v1.0.27 => ./okx
+//replace github.com/drinkthere/okx v1.0.27 => ./okx
