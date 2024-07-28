@@ -11,9 +11,11 @@ func startTickerMessage() {
 	okxSpotTickerChan := make(chan *public.Tickers)
 	message.StartOkxTickerWs(&globalConfig, &globalContext, okxFuturesTickerChan, okxSpotTickerChan)
 
+	// 监听Okx Trades数据
+	message.StartOkxTradesWs(&globalConfig, &globalContext, okxFuturesTickerChan, okxSpotTickerChan)
+
 	// 开启Okx行情数据收集整理
 	message.StartGatherOkxFuturesTicker(okxFuturesTickerChan, &globalContext)
 	message.StartGatherOkxSpotTicker(okxSpotTickerChan, &globalContext)
 
-	// 开启
 }
