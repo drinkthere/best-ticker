@@ -400,17 +400,17 @@ type FastestChannelSourceWrapper struct {
 	Exchange   config.Exchange
 	InstType   config.InstrumentType
 	FastestMap map[string]FastestChannelSource
-	rwLock     *sync.RWMutex
+	RwLock     *sync.RWMutex
 }
 
 func (f *FastestChannelSourceWrapper) Init(exchange config.Exchange, instType config.InstrumentType, instIDs []string) {
 	f.Exchange = exchange
 	f.InstType = instType
 	f.FastestMap = map[string]FastestChannelSource{}
-	f.rwLock = new(sync.RWMutex)
+	f.RwLock = new(sync.RWMutex)
 
-	f.rwLock.RLock()
-	defer f.rwLock.RUnlock()
+	f.RwLock.RLock()
+	defer f.RwLock.RUnlock()
 	channels := []config.Channel{config.BboTbtChannel, config.BooksL2TbtChannel, config.Books50L2TbtChannel}
 	for _, channel := range channels {
 		for _, instID := range instIDs {
@@ -422,9 +422,9 @@ func (f *FastestChannelSourceWrapper) Init(exchange config.Exchange, instType co
 
 func (f *FastestChannelSourceWrapper) GetFastestOrderBookSource(channel config.Channel, instID string) FastestChannelSource {
 	key := genFastestOrderBookKey(channel, instID)
-	f.rwLock.RLock()
+	f.RwLock.RLock()
 	obc, has := f.FastestMap[key]
-	f.rwLock.RUnlock()
+	f.RwLock.RUnlock()
 
 	if has {
 		return obc
@@ -433,15 +433,35 @@ func (f *FastestChannelSourceWrapper) GetFastestOrderBookSource(channel config.C
 	}
 }
 
+func (f *FastestChannelSourceWrapper) GetFastestOrderBookSourceNoLock(channel config.Channel, instID string) FastestChannelSource {
+	key := genFastestOrderBookKey(channel, instID)
+	obc, has := f.FastestMap[key]
+
+	if has {
+		return obc
+	} else {
+		return FastestChannelSource{}
+	}
+}
 func (f *FastestChannelSourceWrapper) UpdateFastestOrderBookSource(channel config.Channel, instID string, ip string, isColo bool, updateTs int64) {
 	key := genFastestOrderBookKey(channel, instID)
-	f.rwLock.RLock()
+	f.RwLock.Lock()
+	defer f.RwLock.Unlock()
 	f.FastestMap[key] = FastestChannelSource{
 		IP:       ip,
 		Colo:     isColo,
 		UpdateTs: updateTs,
 	}
-	f.rwLock.RUnlock()
+}
+
+func (f *FastestChannelSourceWrapper) UpdateFastestOrderBookSourceNoLock(channel config.Channel, instID string, ip string, isColo bool, updateTs int64) {
+	key := genFastestOrderBookKey(channel, instID)
+
+	f.FastestMap[key] = FastestChannelSource{
+		IP:       ip,
+		Colo:     isColo,
+		UpdateTs: updateTs,
+	}
 }
 
 func genFastestOrderBookKey(channel config.Channel, instID string) string {

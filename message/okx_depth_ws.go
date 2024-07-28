@@ -421,10 +421,11 @@ func updateOrderBook(obMsg container.OrderBookMsg, globalContext *context.Global
 		if updateResult {
 			source := globalContext.OkxFuturesFastestSourceWrapper.GetFastestOrderBookSource(obMsg.Channel, obMsg.InstID)
 			updateTime := source.UpdateTs
+			msgUpdateTime := time.Time(obMsg.OrderBookMsg.TS).UnixMilli()
 			//logger.Info("%d %d %t", time.Time(obMsg.OrderBookMsg.TS).UnixMilli(), updateTime, time.Time(obMsg.OrderBookMsg.TS).UnixMilli() > updateTime)
-			if time.Time(obMsg.OrderBookMsg.TS).UnixMilli() > updateTime {
+			if msgUpdateTime > updateTime {
 				// 更新当前channel最快的信息
-				globalContext.OkxFuturesFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo, time.Time(obMsg.OrderBookMsg.TS).UnixMilli())
+				globalContext.OkxFuturesFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo, msgUpdateTime)
 
 				globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
 					Channel:  obMsg.Channel,
