@@ -4,6 +4,7 @@ import (
 	"best-ticker/config"
 	"math"
 	"strings"
+	"sync/atomic"
 	"time"
 )
 
@@ -61,4 +62,11 @@ func InArray(target string, strArray []string) bool {
 
 func GetTimestampInMS() int64 {
 	return time.Now().UnixNano() / 1e6
+}
+
+var gClientOrderID = GetTimestampInMS()
+
+func GetClientOrderID() int64 {
+	atomic.AddInt64(&gClientOrderID, 1)
+	return atomic.LoadInt64(&gClientOrderID)
 }
