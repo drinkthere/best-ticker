@@ -12,38 +12,44 @@ import (
 )
 
 func StartZmq() {
-	logger.Info("Start Ticker ZMQ")
-	startTickerZmq(&globalConfig, &globalContext)
+	if globalConfig.Service == config.OkxExchange {
+		logger.Info("Start Okx Ticker ZMQ")
+		startOkxTickerZmq(&globalConfig, &globalContext)
 
-	logger.Info("Start OrderBook ZMQ")
-	startOrderBookZmq(&globalConfig, &globalContext)
+		logger.Info("Start Okx OrderBook ZMQ")
+		startOkxOrderBookZmq(&globalConfig, &globalContext)
+	} else if globalConfig.Service == config.BinanceExchange {
+		logger.Info("Start Binance Ticker ZMQ")
+		startBinanceTickerZmq(&globalConfig, &globalContext)
+	}
+
 }
 
-func startTickerZmq(cfg *config.Config, globalContext *context.GlobalContext) {
+func startOkxTickerZmq(cfg *config.Config, globalContext *context.GlobalContext) {
 	go func() {
 		ctx, err := zmq.NewContext()
 		if err != nil {
-			logger.Fatal("[ZMQ] Failed to create context, error: %s", err.Error())
+			logger.Fatal("[OKXZMQ] Failed to create context, error: %s", err.Error())
 			os.Exit(1)
 		}
 		pub, err := ctx.NewSocket(zmq.PUB)
 		if err != nil {
 			ctx.Term()
-			logger.Fatal("[ZMQ] Failed to create PUB socket, error: %s", err.Error())
+			logger.Fatal("[OKXZMQ] Failed to create PUB socket, error: %s", err.Error())
 			os.Exit(2)
 		}
 
-		err = pub.Bind(cfg.TickerZMQIPC)
+		err = pub.Bind(cfg.OkxTickerZMQIPC)
 		if err != nil {
 			ctx.Term()
-			logger.Fatal("[ZMQ] Failed to bind IPC %s, error: %s", cfg.TickerZMQIPC, err.Error())
+			logger.Fatal("[OKXZMQ] Failed to bind IPC %s, error: %s", cfg.OkxTickerZMQIPC, err.Error())
 			os.Exit(3)
 		}
 
 		defer pub.Close()
 		defer ctx.Term()
 
-		logger.Info("ticker zmq publisher started")
+		logger.Info("Okx ticker zmq publisher started")
 		for {
 			select {
 			case t := <-globalContext.TickerUpdateChan:
@@ -59,12 +65,12 @@ func startTickerZmq(cfg *config.Config, globalContext *context.GlobalContext) {
 
 				data, err := proto.Marshal(md)
 				if err != nil {
-					logger.Error("[ZMQ] Error marshaling Ticker: %v", err)
+					logger.Error("[OKXZMQ] Error marshaling Ticker: %v", err)
 					continue
 				}
 				_, err = pub.Send(string(data), 0)
 				if err != nil {
-					logger.Error("[ZMQ] Error sending Ticker: %v", err)
+					logger.Error("[OKXZMQ] Error sending Ticker: %v", err)
 					continue
 				}
 			}
@@ -72,31 +78,31 @@ func startTickerZmq(cfg *config.Config, globalContext *context.GlobalContext) {
 	}()
 }
 
-func startOrderBookZmq(cfg *config.Config, globalContext *context.GlobalContext) {
+func startOkxOrderBookZmq(cfg *config.Config, globalContext *context.GlobalContext) {
 	go func() {
 		ctx, err := zmq.NewContext()
 		if err != nil {
-			logger.Fatal("[ZMQ] Failed to create context, error: %s", err.Error())
+			logger.Fatal("[OKXZMQ] Failed to create context, error: %s", err.Error())
 			os.Exit(1)
 		}
 		pub, err := ctx.NewSocket(zmq.PUB)
 		if err != nil {
 			ctx.Term()
-			logger.Fatal("[ZMQ] Failed to create PUB socket, error: %s", err.Error())
+			logger.Fatal("[OKXZMQ] Failed to create PUB socket, error: %s", err.Error())
 			os.Exit(2)
 		}
 
-		err = pub.Bind(cfg.OrderBookZMQIPC)
+		err = pub.Bind(cfg.OkxOrderBookZMQIPC)
 		if err != nil {
 			ctx.Term()
-			logger.Fatal("[ZMQ] Failed to bind IPC %s, error: %s", cfg.OrderBookZMQIPC, err.Error())
+			logger.Fatal("[OKXZMQ] Failed to bind IPC %s, error: %s", cfg.OkxOrderBookZMQIPC, err.Error())
 			os.Exit(3)
 		}
 
 		defer pub.Close()
 		defer ctx.Term()
 
-		logger.Info("orderBook zmq publisher started")
+		logger.Info("Okx orderBook zmq publisher started")
 		for {
 			select {
 			case ob := <-globalContext.OrderBookUpdateChan:
@@ -154,12 +160,12 @@ func startOrderBookZmq(cfg *config.Config, globalContext *context.GlobalContext)
 				orderBook.InstType = string(ob.InstType)
 				data, err := proto.Marshal(orderBook)
 				if err != nil {
-					logger.Error("[ZMQ] Error marshaling OrderBook: %v", err)
+					logger.Error("[OKXZMQ] Error marshaling OrderBook: %v", err)
 					continue
 				}
 				_, err = pub.Send(string(data), 0)
 				if err != nil {
-					logger.Error("[ZMQ] Error sending OrderBook: %v", err)
+					logger.Error("[OKXZMQ] Error sending OrderBook: %v", err)
 					continue
 				}
 			}
@@ -225,4 +231,57 @@ func mergeOrderBook(limit int, bboOb, ob *container.OrderBook) *pb.OkxOrderBook 
 	}
 	limitedOb.Bids = newBids
 	return limitedOb
+}
+
+func startBinanceTickerZmq(cfg *config.Config, globalContext *context.GlobalContext) {
+	go func() {
+		ctx, err := zmq.NewContext()
+		if err != nil {
+			logger.Fatal("[BNZMQ] Failed to create context, error: %s", err.Error())
+			os.Exit(1)
+		}
+		pub, err := ctx.NewSocket(zmq.PUB)
+		if err != nil {
+			ctx.Term()
+			logger.Fatal("[BNZMQ] Failed to create PUB socket, error: %s", err.Error())
+			os.Exit(2)
+		}
+
+		err = pub.Bind(cfg.BinanceTickerZMQIPC)
+		if err != nil {
+			ctx.Term()
+			logger.Fatal("[BNZMQ] Failed to bind IPC %s, error: %s", cfg.BinanceTickerZMQIPC, err.Error())
+			os.Exit(3)
+		}
+
+		defer pub.Close()
+		defer ctx.Term()
+
+		logger.Info("Binance ticker zmq publisher started")
+		for {
+			select {
+			case t := <-globalContext.TickerUpdateChan:
+				md := &pb.BinanceTicker{
+					InstID:   t.InstID,
+					InstType: string(t.InstType),
+					BestBid:  t.BidPrice,
+					BestAsk:  t.AskPrice,
+					EventTs:  t.UpdateTimeMs,
+					BidSz:    t.BidSize,
+					AskSz:    t.AskSize,
+				}
+
+				data, err := proto.Marshal(md)
+				if err != nil {
+					logger.Error("[ZMQ] Error marshaling Ticker: %v", err)
+					continue
+				}
+				_, err = pub.Send(string(data), 0)
+				if err != nil {
+					logger.Error("[ZMQ] Error sending Ticker: %v", err)
+					continue
+				}
+			}
+		}
+	}()
 }

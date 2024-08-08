@@ -16,13 +16,23 @@ type TickerWrapper struct {
 	AskPrice     float64 // 卖1价
 	AskSize      float64 // 卖1量
 	UpdateTimeMs int64   //更新时间（微秒）
+	UpdateID     int64   // 更新ID 400900217
 }
 
 func (wrapper *TickerWrapper) updateTicker(message TickerWrapper) bool {
-	if wrapper.UpdateTimeMs >= message.UpdateTimeMs {
-		// message is expired
-		return false
+	if message.Exchange == config.BinanceExchange && message.InstType == config.SpotInstrument {
+		// 币安现货没有消息更新时间（updateTimeMs），只有updateID
+		if wrapper.UpdateID >= message.UpdateID {
+			// message is expired
+			return false
+		}
+	} else {
+		if wrapper.UpdateTimeMs >= message.UpdateTimeMs {
+			// message is expired
+			return false
+		}
 	}
+
 	if message.AskPrice > 0.0 && message.AskSize > 0.0 {
 		wrapper.AskPrice = message.AskPrice
 		wrapper.AskSize = message.AskSize
@@ -34,6 +44,7 @@ func (wrapper *TickerWrapper) updateTicker(message TickerWrapper) bool {
 	}
 
 	wrapper.UpdateTimeMs = message.UpdateTimeMs
+	wrapper.UpdateID = message.UpdateID
 	return true
 }
 
@@ -44,11 +55,13 @@ type TickerComposite struct {
 	rwLock         *sync.RWMutex
 }
 
-func (composite *TickerComposite) Init(exchange config.Exchange, instType config.InstrumentType) {
-	composite.Exchange = exchange
-	composite.InstType = instType
-	composite.tickerWrappers = map[string]TickerWrapper{}
-	composite.rwLock = new(sync.RWMutex)
+func NewTickerComposite(exchange config.Exchange, instType config.InstrumentType) *TickerComposite {
+	return &TickerComposite{
+		Exchange:       exchange,
+		InstType:       instType,
+		tickerWrappers: map[string]TickerWrapper{},
+		rwLock:         new(sync.RWMutex),
+	}
 }
 
 func (composite *TickerComposite) GetTicker(instID string) *TickerWrapper {

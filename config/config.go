@@ -12,12 +12,18 @@ type OkxConfig struct {
 	OkxPassword  string
 }
 
+type BinanceConfig struct {
+	BinanceAPIKey    string
+	BinanceSecretKey string
+}
+
 type Source struct {
-	Exchange  Exchange  // 交易所
-	IP        string    // local IP to connect to OKx websocket
-	Colo      bool      // is co-location with Okx
-	Channels  []Channel // 改IP下需要订阅的channel
-	OkxConfig OkxConfig // Okx配置
+	Exchange      Exchange      // 交易所
+	IP            string        // local IP to connect to OKx websocket
+	Colo          bool          // is co-location with Okx
+	Channels      []Channel     // 改IP下需要订阅的channel
+	OkxConfig     OkxConfig     // Okx配置
+	BinanceConfig BinanceConfig // Binance配置
 }
 
 type Config struct {
@@ -25,10 +31,13 @@ type Config struct {
 	LogLevel zapcore.Level
 	LogPath  string
 
-	Sources         []Source // 公网IP
-	TickerZMQIPC    string
-	OrderBookZMQIPC string
-	InstIDs         []string // 要套利的交易对
+	Service Exchange // Binance就是binance的best-ticker服务，Okx就是okx的best-ticker服务
+
+	Sources             []Source // ip、channel等配置信息
+	OkxTickerZMQIPC     string
+	OkxOrderBookZMQIPC  string
+	BinanceTickerZMQIPC string
+	InstIDs             []string // 要套利的交易对
 }
 
 func LoadConfig(filename string) *Config {

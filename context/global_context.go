@@ -6,9 +6,11 @@ import (
 )
 
 type GlobalContext struct {
-	InstrumentComposite       container.InstrumentComposite
-	OkxFuturesTickerComposite container.TickerComposite
-	OkxSpotTickerComposite    container.TickerComposite
+	InstrumentComposite           container.InstrumentComposite
+	OkxFuturesTickerComposite     *container.TickerComposite
+	OkxSpotTickerComposite        *container.TickerComposite
+	BinanceFuturesTickerComposite *container.TickerComposite
+	BinanceSpotTickerComposite    *container.TickerComposite
 
 	OkxFuturesOrderBookCompositeWrapper *container.OrderBookCompositeWrapper
 	OkxSpotOrderBookCompositeWrapper    *container.OrderBookCompositeWrapper
@@ -41,13 +43,11 @@ func (context *GlobalContext) initInstrumentComposite(globalConfig *config.Confi
 }
 
 func (context *GlobalContext) initTickerComposite() {
-	okxFuturesComposite := container.TickerComposite{}
-	okxFuturesComposite.Init(config.OkxExchange, config.FuturesInstrument)
-	context.OkxFuturesTickerComposite = okxFuturesComposite
+	context.OkxFuturesTickerComposite = container.NewTickerComposite(config.OkxExchange, config.FuturesInstrument)
+	context.OkxSpotTickerComposite = container.NewTickerComposite(config.OkxExchange, config.SpotInstrument)
 
-	okxSpotComposite := container.TickerComposite{}
-	okxSpotComposite.Init(config.OkxExchange, config.SpotInstrument)
-	context.OkxSpotTickerComposite = okxSpotComposite
+	context.BinanceFuturesTickerComposite = container.NewTickerComposite(config.BinanceExchange, config.FuturesInstrument)
+	context.BinanceSpotTickerComposite = container.NewTickerComposite(config.BinanceExchange, config.SpotInstrument)
 }
 
 func (context *GlobalContext) initOrderBookComposite(globalConfig *config.Config) {
