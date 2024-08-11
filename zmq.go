@@ -269,6 +269,7 @@ func startBinanceTickerZmq(cfg *config.Config, globalContext *context.GlobalCont
 					EventTs:  t.UpdateTimeMs,
 					BidSz:    t.BidSize,
 					AskSz:    t.AskSize,
+					UpdateID: t.UpdateID,
 				}
 
 				data, err := proto.Marshal(md)
