@@ -55,7 +55,7 @@ func StartGatherBinanceFuturesBookTicker(tickChan chan *binanceFutures.WsBookTic
 		}
 	}()
 
-	logger.Info("[GatherBFTickerErr] Start Gather Binance Futures Flash Ticker")
+	logger.Info("[GatherBFTickerErr] Start Gather Binance Futures Ticker")
 }
 
 func convertSpotEventToBinanceTickerMessage(ticker *binanceSpot.WsBookTickerEvent) container.TickerWrapper {

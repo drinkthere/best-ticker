@@ -24,4 +24,4 @@ require (
 	go.uber.org/multierr v1.10.0 // indirect
 )
 
-//replace github.com/drinkthere/okx v1.0.27 => ./okx
+// replace github.com/dictxwang/go-binance => ./go-binance
