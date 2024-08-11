@@ -27,12 +27,12 @@ func StartGatherBinanceSpotBookTicker(tickChan chan *binanceSpot.WsBookTickerEve
 			}
 
 			if r.Int31n(10000) < 2 {
-				logger.Info("[GatherBSTickerErr] Receive Binance Spot Ticker %+v", t)
+				logger.Info("[GatherBSTicker] Receive Binance Spot Ticker %+v", t)
 			}
 		}
 	}()
 
-	logger.Info("[GatherBSTickerErr] Start Gather Binance Spot Book Ticker")
+	logger.Info("[GatherBSTicker] Start Gather Binance Spot Book Ticker")
 }
 
 func StartGatherBinanceFuturesBookTicker(tickChan chan *binanceFutures.WsBookTickerEvent, globalContext *context.GlobalContext) {
@@ -50,12 +50,12 @@ func StartGatherBinanceFuturesBookTicker(tickChan chan *binanceFutures.WsBookTic
 			}
 
 			if r.Int31n(10000) < 2 {
-				logger.Info("[GatherBFTickerErr] Receive Binance Futures Ticker %+v", t)
+				logger.Info("[GatherBFTicker] Receive Binance Futures Ticker %+v", t)
 			}
 		}
 	}()
 
-	logger.Info("[GatherBFTickerErr] Start Gather Binance Futures Ticker")
+	logger.Info("[GatherBFTicker] Start Gather Binance Futures Ticker")
 }
 
 func convertSpotEventToBinanceTickerMessage(ticker *binanceSpot.WsBookTickerEvent) container.TickerWrapper {
@@ -84,7 +84,7 @@ func convertFuturesEventToBinanceTickerMessage(ticker *binanceFutures.WsBookTick
 	bestBidQty, _ := strconv.ParseFloat(ticker.BestBidQty, 64)
 	return container.TickerWrapper{
 		Exchange:     config.BinanceExchange,
-		InstType:     config.SpotInstrument,
+		InstType:     config.FuturesInstrument,
 		InstID:       ticker.Symbol,
 		Channel:      config.NoChannel,
 		AskPrice:     bestAskPrice,

@@ -34,6 +34,7 @@ lint: golangci
 proto:
 	protoc --go_out=. ./protocol/proto/okxticker.proto
 	protoc --go_out=. ./protocol/proto/okxorderbook.proto
+	protoc --go_out=. ./protocol/proto/bnticker.proto
 
 golangci:
 ifeq (, $(shell which golangci-lint))
