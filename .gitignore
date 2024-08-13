@@ -3,6 +3,7 @@ vendor/
 config/*.json
 bin/bt
 bin/logs
+bin/nohup.out
 logs/
 okx
 *.DS_Store 
