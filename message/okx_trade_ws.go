@@ -11,6 +11,7 @@ import (
 	"github.com/drinkthere/okx/events/public"
 	"github.com/drinkthere/okx/models/market"
 	wsRequestPublic "github.com/drinkthere/okx/requests/ws/public"
+	"math/rand"
 	"time"
 )
 
@@ -34,6 +35,7 @@ func startOkxFuturesTrades(cfg *config.OkxConfig, globalContext *context.GlobalC
 			logger.Warn("[FTradesWebSocket] Okx Futures Ticker Listening Exited.")
 		}()
 		tradesChan := make(chan *public.Trades)
+		r := rand.New(rand.NewSource(2))
 
 		for {
 		ReConnect:
@@ -54,6 +56,9 @@ func startOkxFuturesTrades(cfg *config.OkxConfig, globalContext *context.GlobalC
 
 				if err != nil {
 					logger.Fatal("[FTradesWebSocket] Fail To Listen Futures Trades For %s, %s", instID, err.Error())
+					logger.Warn("[FTradesWebSocket] Will Reconnect Futures-Trades-WebSocket After 5 Second")
+					time.Sleep(time.Second * 5)
+					goto ReConnect
 				} else {
 					logger.Info("[FTradesWebSocket] Futures Trades WebSocket Has Established For %s", instID)
 				}
@@ -74,6 +79,9 @@ func startOkxFuturesTrades(cfg *config.OkxConfig, globalContext *context.GlobalC
 					logger.Info("[FTradesWebSocket] Futures Receive Success: %+v", s)
 				case t := <-tradesChan:
 					tickers := convertTradesToTickersMsg(t, okx.SwapInstrument)
+					if r.Int31n(10000) < 5 {
+						logger.Info("[FTradesWebSocket] ticker is %+v", tickers.Tickers[0])
+					}
 					tickerChan <- tickers
 				case b := <-okxClient.Client.Ws.DoneChan:
 					logger.Info("[FTradesWebSocket] Futures End\t%v", b)
@@ -94,6 +102,7 @@ func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalCont
 		defer func() {
 			logger.Warn("[STradeWebSocket] Okx Spot Ticker Listening Exited.")
 		}()
+		r := rand.New(rand.NewSource(2))
 		tradesChan := make(chan *public.Trades)
 
 		for {
@@ -114,6 +123,9 @@ func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalCont
 
 				if err != nil {
 					logger.Fatal("[STradeWebSocket] Fail To Listen Spot Trade for %s, %s", instID, err.Error())
+					logger.Warn("[STradeWebSocket] Will Reconnect Spot-Trade-WebSocket After 5 Second")
+					time.Sleep(time.Second * 5)
+					goto ReConnect
 				}
 				logger.Info("[STradeWebSocket] Spot Trade WebSocket Has Established For %s", instID)
 			}
@@ -132,6 +144,9 @@ func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalCont
 					logger.Info("[STradeWebSocket] Spot Receive Success: %+v", s)
 				case t := <-tradesChan:
 					tickers := convertTradesToTickersMsg(t, okx.SpotInstrument)
+					if r.Int31n(10000) < 5 {
+						logger.Info("[STradeWebSocket] ticker is %+v", tickers.Tickers[0])
+					}
 					tickerChan <- tickers
 				case b := <-okxClient.Client.Ws.DoneChan:
 					logger.Info("[STradeWebSocket] Spot End\t%v", b)
