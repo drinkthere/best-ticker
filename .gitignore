@@ -2,6 +2,7 @@ vendor/
 .idea
 config/*.json
 bin/bt
+bin/bt.bak
 bin/logs
 bin/nohup.out
 logs/
