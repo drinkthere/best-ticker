@@ -57,16 +57,16 @@ func (ws *BinanceMarketWebSocket) StartBinanceMarketWs(globalContext *context.Gl
 			isStopped:  true,
 			randGen:    rand.New(rand.NewSource(2)),
 		}
-		innerMargin.subscribeBookTickers(ip, colo)
+		innerMargin.subscribeBookTickers(ip)
 
-		// 初始化合约行情监控
-		innerFutures := innerBinanceFuturesWebSocket{
-			instIDs:    batch,
-			tickerChan: ws.futuresTickerChan,
-			isStopped:  true,
-			randGen:    rand.New(rand.NewSource(2)),
-		}
-		innerFutures.subscribeBookTickers(ip, colo)
+		// // 初始化合约行情监控
+		// innerFutures := innerBinanceFuturesWebSocket{
+		// 	instIDs:    batch,
+		// 	tickerChan: ws.futuresTickerChan,
+		// 	isStopped:  true,
+		// 	randGen:    rand.New(rand.NewSource(2)),
+		// }
+		// innerFutures.subscribeBookTickers(ip, colo)
 	}
 	logger.Info("[BSTickerWebSocket] Start Listen Binance Spot Tickers")
 	logger.Info("[BFTickerWebSocket] Start Listen Binance Futures Tickers")
@@ -94,7 +94,7 @@ func (ws *innerBinanceSpotWebSocket) handleError(err error) {
 	ws.isStopped = true
 }
 
-func (ws *innerBinanceSpotWebSocket) subscribeBookTickers(ip string, colo bool) {
+func (ws *innerBinanceSpotWebSocket) subscribeBookTickers(ip string) {
 
 	go func() {
 		defer func() {
@@ -104,11 +104,6 @@ func (ws *innerBinanceSpotWebSocket) subscribeBookTickers(ip string, colo bool) 
 			if !ws.isStopped {
 				time.Sleep(time.Second * 1)
 				continue
-			}
-			if colo {
-				binanceFutures.UseIntranet = true
-			} else {
-				binanceFutures.UseIntranet = false
 			}
 			var stopChan chan struct{}
 			var err error
