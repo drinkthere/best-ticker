@@ -48,7 +48,7 @@ func startOkxFuturesTickers(cfg *config.OkxConfig, globalContext *context.Global
 				}, tickerChan)
 
 				if err != nil {
-					logger.Fatal("[FTickerWebSocket] Fail To Listen Futures Ticker For %s, %s", instID, err.Error())
+					logger.Error("[FTickerWebSocket] Fail To Listen Futures Ticker For %s, %s", instID, err.Error())
 					logger.Warn("[FTickerWebSocket] Will Reconnect Futures-WebSocket After 5 Second")
 					time.Sleep(time.Second * 5)
 					goto ReConnect
@@ -106,7 +106,7 @@ func startOkxSpotTickers(cfg *config.OkxConfig, globalContext *context.GlobalCon
 				}, tickerChan)
 
 				if err != nil {
-					logger.Fatal("[STickerWebSocket] Fail To Listen Spot Ticker for %s, %s", instID, err.Error())
+					logger.Error("[STickerWebSocket] Fail To Listen Spot Ticker for %s, %s", instID, err.Error())
 					logger.Warn("[STickerWebSocket] Will Reconnect Spot-WebSocket After 5 Second")
 					time.Sleep(time.Second * 5)
 					goto ReConnect

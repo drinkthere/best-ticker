@@ -72,7 +72,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 					Channel: currCh,
 				}, depthChan)
 				if err != nil {
-					logger.Fatal("[FDepthWebSocket] Fail To Listen Futures Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
+					logger.Error("[FDepthWebSocket] Fail To Listen Futures Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
 					logger.Warn("[FDepthWebSocket] Will Reconnect Futures-Depth-WebSocket After 5 Second")
 					time.Sleep(time.Second * 5)
 					goto ReConnect
@@ -106,7 +106,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 							Channel: currCh,
 						}, depthChan)
 						if err != nil {
-							logger.Fatal("[FDepthWebSocket] Fail To Listen Futures Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
+							logger.Error("[FDepthWebSocket] Fail To Listen Futures Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
 						} else {
 							logger.Info("[FDepthWebSocket] Futures Depth WebSocket Has Established For %s %s %s", localIP, instID, currCh)
 						}
@@ -210,7 +210,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 			if channel == config.BooksL2TbtChannel || channel == config.Books50L2TbtChannel {
 				err := okxClient.Client.Ws.Private.Login()
 				if err != nil {
-					logger.Fatal("[SDepthWebSocket] Fail To Login, Error: %s", err.Error())
+					logger.Error("[SDepthWebSocket] Fail To Login, Error: %s", err.Error())
 					logger.Warn("[SDepthWebSocket] Will Reconnect Spot-Depth-WebSocket After 5 Second")
 					time.Sleep(time.Second * 5)
 					goto ReConnect
@@ -230,7 +230,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 				}, depthChan)
 
 				if err != nil {
-					logger.Fatal("[SDepthWebSocket] Fail To Listen Spot Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
+					logger.Error("[SDepthWebSocket] Fail To Listen Spot Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
 					logger.Warn("[SDepthWebSocket] Will Reconnect Spot-Depth-WebSocket After 5 Second")
 					time.Sleep(time.Second * 5)
 					goto ReConnect
@@ -265,7 +265,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 							Channel: currCh,
 						}, depthChan)
 						if err != nil {
-							logger.Fatal("[SDepthWebSocket] Fail To Listen Spot Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
+							logger.Error("[SDepthWebSocket] Fail To Listen Spot Depth For %s %s, %s, %s", localIP, instID, currCh, err.Error())
 						} else {
 							logger.Info("[SDepthWebSocket] Spot Depth WebSocket Has Established For %s %s %s", localIP, instID, currCh)
 						}

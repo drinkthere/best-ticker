@@ -8,7 +8,6 @@ import (
 	"best-ticker/utils/logger"
 	zmq "github.com/pebbe/zmq4"
 	"google.golang.org/protobuf/proto"
-	"os"
 )
 
 func StartZmq() {
@@ -30,20 +29,17 @@ func startOkxTickerZmq(cfg *config.Config, globalContext *context.GlobalContext)
 		ctx, err := zmq.NewContext()
 		if err != nil {
 			logger.Fatal("[OKXZMQ] Failed to create context, error: %s", err.Error())
-			os.Exit(1)
 		}
 		pub, err := ctx.NewSocket(zmq.PUB)
 		if err != nil {
 			ctx.Term()
 			logger.Fatal("[OKXZMQ] Failed to create PUB socket, error: %s", err.Error())
-			os.Exit(2)
 		}
 
 		err = pub.Bind(cfg.OkxTickerZMQIPC)
 		if err != nil {
 			ctx.Term()
 			logger.Fatal("[OKXZMQ] Failed to bind IPC %s, error: %s", cfg.OkxTickerZMQIPC, err.Error())
-			os.Exit(3)
 		}
 
 		defer pub.Close()
@@ -83,20 +79,17 @@ func startOkxOrderBookZmq(cfg *config.Config, globalContext *context.GlobalConte
 		ctx, err := zmq.NewContext()
 		if err != nil {
 			logger.Fatal("[OKXZMQ] Failed to create context, error: %s", err.Error())
-			os.Exit(1)
 		}
 		pub, err := ctx.NewSocket(zmq.PUB)
 		if err != nil {
 			ctx.Term()
 			logger.Fatal("[OKXZMQ] Failed to create PUB socket, error: %s", err.Error())
-			os.Exit(2)
 		}
 
 		err = pub.Bind(cfg.OkxOrderBookZMQIPC)
 		if err != nil {
 			ctx.Term()
 			logger.Fatal("[OKXZMQ] Failed to bind IPC %s, error: %s", cfg.OkxOrderBookZMQIPC, err.Error())
-			os.Exit(3)
 		}
 
 		defer pub.Close()
@@ -238,20 +231,17 @@ func startBinanceTickerZmq(cfg *config.Config, globalContext *context.GlobalCont
 		ctx, err := zmq.NewContext()
 		if err != nil {
 			logger.Fatal("[BNZMQ] Failed to create context, error: %s", err.Error())
-			os.Exit(1)
 		}
 		pub, err := ctx.NewSocket(zmq.PUB)
 		if err != nil {
 			ctx.Term()
 			logger.Fatal("[BNZMQ] Failed to create PUB socket, error: %s", err.Error())
-			os.Exit(2)
 		}
 
 		err = pub.Bind(cfg.BinanceTickerZMQIPC)
 		if err != nil {
 			ctx.Term()
 			logger.Fatal("[BNZMQ] Failed to bind IPC %s, error: %s", cfg.BinanceTickerZMQIPC, err.Error())
-			os.Exit(3)
 		}
 
 		defer pub.Close()

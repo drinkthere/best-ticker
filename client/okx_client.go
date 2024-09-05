@@ -2,10 +2,10 @@ package client
 
 import (
 	"best-ticker/config"
+	"best-ticker/utils/logger"
 	"context"
 	"github.com/drinkthere/okx"
 	"github.com/drinkthere/okx/api"
-	"log"
 )
 
 type OkxClient struct {
@@ -30,7 +30,7 @@ func (okxClient *OkxClient) Init(cfg *config.OkxConfig, isColo bool, localIP str
 		client, err = api.NewClientWithIP(ctx, cfg.OkxAPIKey, cfg.OkxSecretKey, cfg.OkxPassword, dest, localIP)
 	}
 	if err != nil {
-		log.Fatal(err)
+		logger.Error(err.Error())
 		return false
 	}
 

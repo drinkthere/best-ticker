@@ -55,7 +55,7 @@ func startOkxFuturesTrades(cfg *config.OkxConfig, globalContext *context.GlobalC
 				}, tradesChan)
 
 				if err != nil {
-					logger.Fatal("[FTradesWebSocket] Fail To Listen Futures Trades For %s, %s", instID, err.Error())
+					logger.Error("[FTradesWebSocket] Fail To Listen Futures Trades For %s, %s", instID, err.Error())
 					logger.Warn("[FTradesWebSocket] Will Reconnect Futures-Trades-WebSocket After 5 Second")
 					time.Sleep(time.Second * 5)
 					goto ReConnect
@@ -122,7 +122,7 @@ func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalCont
 				}, tradesChan)
 
 				if err != nil {
-					logger.Fatal("[STradeWebSocket] Fail To Listen Spot Trade for %s, %s", instID, err.Error())
+					logger.Error("[STradeWebSocket] Fail To Listen Spot Trade for %s, %s", instID, err.Error())
 					logger.Warn("[STradeWebSocket] Will Reconnect Spot-Trade-WebSocket After 5 Second")
 					time.Sleep(time.Second * 5)
 					goto ReConnect
