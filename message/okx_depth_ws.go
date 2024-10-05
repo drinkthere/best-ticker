@@ -52,7 +52,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 			if channel == config.BooksL2TbtChannel || channel == config.Books50L2TbtChannel {
 				err := okxClient.Client.Ws.Private.Login()
 				if err != nil {
-					logger.Fatal("[FDepthWebSocket] Fail To Login, Error: %s", err.Error())
+					logger.Error("[FDepthWebSocket] Fail To Login, Error: %s", err.Error())
 					logger.Warn("[FDepthWebSocket] Will Reconnect Futures-Depth-WebSocket After 5 Second")
 					time.Sleep(time.Second * 5)
 					goto ReConnect
