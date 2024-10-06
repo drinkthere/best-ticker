@@ -4,7 +4,6 @@ import (
 	"best-ticker/client"
 	"best-ticker/config"
 	"best-ticker/context"
-	"best-ticker/utils"
 	"best-ticker/utils/logger"
 	"github.com/drinkthere/okx"
 	"github.com/drinkthere/okx/events"
@@ -78,7 +77,7 @@ func startOkxFuturesTrades(cfg *config.OkxConfig, globalContext *context.GlobalC
 				case s := <-successCh:
 					logger.Info("[FTradesWebSocket] Futures Receive Success: %+v", s)
 				case t := <-tradesChan:
-					tickers := convertTradesToTickersMsg(t, okx.SwapInstrument)
+					tickers := convertTradesToTickersMsg(globalContext, t, okx.FuturesInstrument)
 					if r.Int31n(10000) < 5 {
 						logger.Info("[FTradesWebSocket] ticker is %+v", tickers.Tickers[0])
 					}
@@ -143,7 +142,7 @@ func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalCont
 				case s := <-successCh:
 					logger.Info("[STradeWebSocket] Spot Receive Success: %+v", s)
 				case t := <-tradesChan:
-					tickers := convertTradesToTickersMsg(t, okx.SpotInstrument)
+					tickers := convertTradesToTickersMsg(globalContext, t, okx.SpotInstrument)
 					if r.Int31n(10000) < 5 {
 						logger.Info("[STradeWebSocket] ticker is %+v", tickers.Tickers[0])
 					}
@@ -160,7 +159,7 @@ func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalCont
 	}()
 }
 
-func convertTradesToTickersMsg(tradesEvent *public.Trades, instType okx.InstrumentType) *public.Tickers {
+func convertTradesToTickersMsg(globalContext *context.GlobalContext, tradesEvent *public.Trades, instType okx.InstrumentType) *public.Tickers {
 	// 获取最新的trade
 	var latestTrade *market.Trade
 	var updateTs time.Time
@@ -171,32 +170,33 @@ func convertTradesToTickersMsg(tradesEvent *public.Trades, instType okx.Instrume
 			latestTrade = trade
 		}
 	}
-
-	bidPx, askPx := 0.0, 0.0
-	// @TODO  如果要支持对比中，这里需要知道价格每次变动的最小单位
-	priceChange := 0.1
-	pricePrecision := 1
-	if latestTrade.InstID == "ETH-USDT" || latestTrade.InstID == "ETH-USDT-SWAP" {
-		priceChange = 0.01
-		pricePrecision = 2
+	instID := latestTrade.InstID
+	tickInfo := globalContext.InstrumentComposite.SwapTickMap[instID]
+	if instType == okx.SpotInstrument {
+		tickInfo = globalContext.InstrumentComposite.SpotTickMap[instID]
 	}
 
+	bidPx, bidSz, askPx, askSz := 0.0, 0.0, 0.0, 0.0
+	px := float64(latestTrade.Px)
+	sz := float64(latestTrade.Sz)
 	if latestTrade.Side == okx.TradeBuySide {
-		bidPx = float64(latestTrade.Px)
-		askPx = float64(latestTrade.Px) + priceChange
-		askPx = utils.Round(askPx, pricePrecision)
+		bidPx = px
+		bidSz = sz
+		askPx = px + tickInfo.TickSiz
+		askSz = tickInfo.MinSz
 	} else {
-		bidPx = float64(latestTrade.Px) - priceChange
-		bidPx = utils.Round(bidPx, pricePrecision)
-		askPx = float64(latestTrade.Px)
+		bidPx = px - tickInfo.TickSiz
+		bidSz = tickInfo.MinSz
+		askPx = px
+		askSz = sz
 	}
 
 	ticker := &market.Ticker{
-		InstID:   latestTrade.InstID,
+		InstID:   instID,
 		AskPx:    okx.JSONFloat64(askPx),
-		AskSz:    latestTrade.Sz,
+		AskSz:    okx.JSONFloat64(askSz),
 		BidPx:    okx.JSONFloat64(bidPx),
-		BidSz:    latestTrade.Sz,
+		BidSz:    okx.JSONFloat64(bidSz),
 		InstType: instType,
 		TS:       latestTrade.TS,
 	}
