@@ -41,13 +41,6 @@ func (composite *InstrumentComposite) Init(instIDs []string, exchange config.Exc
 		composite.SpotTickMap = make(map[string]*TickInfo)
 		composite.SwapTickMap = make(map[string]*TickInfo)
 	}
-
-	for key, val := range composite.SpotTickMap {
-		logger.Info("key is %s, val is %+v", key, *val)
-	}
-	for key, val := range composite.SwapTickMap {
-		logger.Info("key is %s, val is %+v", key, *val)
-	}
 }
 
 func getTickMap(okxClient *client.OkxClient, instIDs []string, instrumentType okx.InstrumentType) map[string]*TickInfo {
