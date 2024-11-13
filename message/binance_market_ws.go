@@ -59,14 +59,14 @@ func (ws *BinanceMarketWebSocket) StartBinanceMarketWs(globalContext *context.Gl
 		}
 		innerMargin.subscribeBookTickers(ip)
 
-		// // 初始化合约行情监控
-		// innerFutures := innerBinanceFuturesWebSocket{
-		// 	instIDs:    batch,
-		// 	tickerChan: ws.futuresTickerChan,
-		// 	isStopped:  true,
-		// 	randGen:    rand.New(rand.NewSource(2)),
-		// }
-		// innerFutures.subscribeBookTickers(ip, colo)
+		// 初始化合约行情监控
+		innerFutures := innerBinanceFuturesWebSocket{
+			instIDs:    batch,
+			tickerChan: ws.futuresTickerChan,
+			isStopped:  true,
+			randGen:    rand.New(rand.NewSource(2)),
+		}
+		innerFutures.subscribeBookTickers(ip, colo)
 	}
 	logger.Info("[BSTickerWebSocket] Start Listen Binance Spot Tickers")
 	logger.Info("[BFTickerWebSocket] Start Listen Binance Futures Tickers")
