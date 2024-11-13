@@ -5,7 +5,7 @@ cpuidx=0
 case "$1" in
     "start")
         echo "Starting Service..."
-        nohup taskset -c "$cpuidx" ./bt ../config/config.json > ./logs/nohup-bt.log 2>&1 &
+        nohup taskset -c "$cpuidx" ./bt ../config/config.json >> ./logs/nohup-bt.log 2>&1 &
         ;;
     "stop")
         echo "Stopping Service..."
