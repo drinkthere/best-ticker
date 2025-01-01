@@ -3,7 +3,9 @@ package message
 import (
 	"best-ticker/client"
 	"best-ticker/config"
+	"best-ticker/container"
 	"best-ticker/context"
+	"best-ticker/utils"
 	"best-ticker/utils/logger"
 	"github.com/drinkthere/okx"
 	"github.com/drinkthere/okx/events"
@@ -14,20 +16,18 @@ import (
 	"time"
 )
 
-func StartOkxTradesWs(cfg *config.Config, globalContext *context.GlobalContext,
-	okxFuturesTickerChan chan *public.Tickers, okxSpotTickerChan chan *public.Tickers) {
+func StartOkxTradesWs(cfg *config.Config, globalContext *context.GlobalContext) {
 	for _, source := range cfg.Sources {
 		// 循环不同的IP，监听对应的tickers
-		startOkxFuturesTrades(&source.OkxConfig, globalContext, source.Colo, source.IP, okxFuturesTickerChan)
+		startOkxFuturesTrades(&source.OkxConfig, globalContext, source.Colo, source.IP)
 		logger.Info("[FTradesWebSocket] Start Listen Okx Futures Tickers, isColo:%t, ip:%s", source.Colo, source.IP)
-		startOkxSpotTrades(&source.OkxConfig, globalContext, source.Colo, source.IP, okxSpotTickerChan)
+		startOkxSpotTrades(&source.OkxConfig, globalContext, source.Colo, source.IP)
 		logger.Info("[STradesWebSocket] Start Listen Okx Spot Tickers, isColo:%t, ip:%s", source.Colo, source.IP)
 		time.Sleep(1 * time.Second)
 	}
 }
 
-func startOkxFuturesTrades(cfg *config.OkxConfig, globalContext *context.GlobalContext,
-	isColo bool, localIP string, tickerChan chan *public.Tickers) {
+func startOkxFuturesTrades(cfg *config.OkxConfig, globalContext *context.GlobalContext, isColo bool, localIP string) {
 
 	go func() {
 		defer func() {
@@ -77,11 +77,16 @@ func startOkxFuturesTrades(cfg *config.OkxConfig, globalContext *context.GlobalC
 				case s := <-successCh:
 					logger.Info("[FTradesWebSocket] Futures Receive Success: %+v", s)
 				case t := <-tradesChan:
-					tickers := convertTradesToTickersMsg(globalContext, t, okx.FuturesInstrument)
 					if r.Int31n(10000) < 5 {
-						logger.Info("[FTradesWebSocket] ticker is %+v", tickers.Tickers[0])
+						logger.Info("[FTradesWebSocket] trade is %+v", t.Trades[0])
 					}
-					tickerChan <- tickers
+					tickerMsg := convertTradesToTickersMsg(globalContext, t, okx.SwapInstrument)
+					result := globalContext.OkxFuturesTickerComposite.UpdateTicker(tickerMsg)
+					if result {
+						logger.Debug("swap result is %t", result)
+						logger.Debug("FUTURES|CHANNEL|Trade")
+						globalContext.TickerUpdateChan <- &tickerMsg
+					}
 				case b := <-okxClient.Client.Ws.DoneChan:
 					logger.Info("[FTradesWebSocket] Futures End\t%v", b)
 					// 暂停一秒再跳出，避免异常时频繁发起重连
@@ -94,8 +99,7 @@ func startOkxFuturesTrades(cfg *config.OkxConfig, globalContext *context.GlobalC
 	}()
 }
 
-func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalContext,
-	isColo bool, localIP string, tickerChan chan *public.Tickers) {
+func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalContext, isColo bool, localIP string) {
 
 	go func() {
 		defer func() {
@@ -142,11 +146,16 @@ func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalCont
 				case s := <-successCh:
 					logger.Info("[STradeWebSocket] Spot Receive Success: %+v", s)
 				case t := <-tradesChan:
-					tickers := convertTradesToTickersMsg(globalContext, t, okx.SpotInstrument)
 					if r.Int31n(10000) < 5 {
-						logger.Info("[STradeWebSocket] ticker is %+v", tickers.Tickers[0])
+						logger.Info("[STradeWebSocket] trade is %+v", t.Trades[0])
 					}
-					tickerChan <- tickers
+					tickerMsg := convertTradesToTickersMsg(globalContext, t, okx.SpotInstrument)
+					result := globalContext.OkxSpotTickerComposite.UpdateTicker(tickerMsg)
+					if result {
+						logger.Debug("spot result is %t", result)
+						logger.Debug("SPOT|CHANNEL|Trade")
+						globalContext.TickerUpdateChan <- &tickerMsg
+					}
 				case b := <-okxClient.Client.Ws.DoneChan:
 					logger.Info("[STradeWebSocket] Spot End\t%v", b)
 					// 暂停一秒再跳出，避免异常时频繁发起重连
@@ -159,7 +168,8 @@ func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalCont
 	}()
 }
 
-func convertTradesToTickersMsg(globalContext *context.GlobalContext, tradesEvent *public.Trades, instType okx.InstrumentType) *public.Tickers {
+func convertTradesToTickersMsg(globalContext *context.GlobalContext, tradesEvent *public.Trades, instType okx.InstrumentType) container.TickerWrapper {
+
 	// 获取最新的trade
 	var latestTrade *market.Trade
 	var updateTs time.Time
@@ -191,23 +201,16 @@ func convertTradesToTickersMsg(globalContext *context.GlobalContext, tradesEvent
 		askSz = sz
 	}
 
-	ticker := &market.Ticker{
-		InstID:   instID,
-		AskPx:    okx.JSONFloat64(askPx),
-		AskSz:    okx.JSONFloat64(askSz),
-		BidPx:    okx.JSONFloat64(bidPx),
-		BidSz:    okx.JSONFloat64(bidSz),
-		InstType: instType,
-		TS:       latestTrade.TS,
+	return container.TickerWrapper{
+		Exchange:     config.OkxExchange,
+		InstType:     utils.ConvertToStdInstType(config.OkxExchange, string(instType)),
+		InstID:       instID,
+		Channel:      config.NoChannel,
+		AskPrice:     askPx,
+		AskSize:      askSz,
+		BidPrice:     bidPx,
+		BidSize:      bidSz,
+		UpdateTimeMs: updateTs.UnixMilli(),
+		IsFromTrade:  true,
 	}
-
-	// 只根据最新的trade来设置ticker，所以这里长度为1
-	tickers := &public.Tickers{
-		Arg:     tradesEvent.Arg,
-		Tickers: make([]*market.Ticker, 0, 1),
-	}
-	tickers.Arg.Set("channel", "tickers")
-	tickers.Tickers = append(tickers.Tickers, ticker)
-
-	return tickers
 }

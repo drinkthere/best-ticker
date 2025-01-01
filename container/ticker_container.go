@@ -24,6 +24,7 @@ type TickerWrapper struct {
 	AskSize      float64 // 卖1量
 	UpdateTimeMs int64   //更新时间（微秒）
 	UpdateID     int64   // 更新ID 400900217
+	IsFromTrade  bool    // 是否来自trade消息
 	LastTicker   LastTicker
 }
 

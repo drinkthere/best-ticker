@@ -23,6 +23,7 @@ func convertToOkxTickerMessage(ticker *market.Ticker) container.TickerWrapper {
 		BidPrice:     float64(ticker.BidPx),
 		BidSize:      float64(ticker.BidSz),
 		UpdateTimeMs: time.Time(ticker.TS).UnixMilli(),
+		IsFromTrade:  false,
 	}
 }
 

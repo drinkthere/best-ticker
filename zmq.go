@@ -50,13 +50,14 @@ func startOkxTickerZmq(cfg *config.Config, globalContext *context.GlobalContext)
 			select {
 			case t := <-globalContext.TickerUpdateChan:
 				md := &pb.OkxTicker{
-					InstID:   t.InstID,
-					InstType: string(t.InstType),
-					BestBid:  t.BidPrice,
-					BestAsk:  t.AskPrice,
-					EventTs:  t.UpdateTimeMs,
-					BidSz:    t.BidSize,
-					AskSz:    t.AskSize,
+					InstID:      t.InstID,
+					InstType:    string(t.InstType),
+					BestBid:     t.BidPrice,
+					BestAsk:     t.AskPrice,
+					EventTs:     t.UpdateTimeMs,
+					BidSz:       t.BidSize,
+					AskSz:       t.AskSize,
+					IsFromTrade: t.IsFromTrade,
 				}
 
 				data, err := proto.Marshal(md)

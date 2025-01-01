@@ -8,4 +8,5 @@ message OkxTicker {
   double bestAsk = 5;
   double askSz = 6;
   int64 eventTs = 7;
+  bool isFromTrade = 8;
 }
