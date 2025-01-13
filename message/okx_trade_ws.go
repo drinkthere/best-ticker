@@ -13,6 +13,7 @@ import (
 	"github.com/drinkthere/okx/models/market"
 	wsRequestPublic "github.com/drinkthere/okx/requests/ws/public"
 	"math/rand"
+	"strings"
 	"time"
 )
 
@@ -70,6 +71,11 @@ func startOkxFuturesTrades(cfg *config.OkxConfig, globalContext *context.GlobalC
 					channel, _ := sub.Arg.Get("channel")
 					logger.Info("[FTradesWebSocket] Futures Subscribe \t%s", channel)
 				case err := <-errChan:
+					if strings.Contains(err.Msg, "i/o timeout") {
+						logger.Warn("[FTradesWebSocket] Error occurred %s, Will reconnect after 1 second.", err.Msg)
+						time.Sleep(time.Second * 1)
+						goto ReConnect
+					}
 					logger.Error("[FTradesWebSocket] Futures Occur Some Error \t%+v", err)
 					for _, datum := range err.Data {
 						logger.Error("[FTradesWebSocket] Futures Error Data \t\t%+v", datum)
@@ -139,6 +145,11 @@ func startOkxSpotTrades(cfg *config.OkxConfig, globalContext *context.GlobalCont
 					channel, _ := sub.Arg.Get("channel")
 					logger.Info("[STradeWebSocket] Spot Subscribe \t%s", channel)
 				case err := <-errChan:
+					if strings.Contains(err.Msg, "i/o timeout") {
+						logger.Warn("[STradeWebSocket] Error occurred %s, Will reconnect after 1 second.", err.Msg)
+						time.Sleep(time.Second * 1)
+						goto ReConnect
+					}
 					logger.Error("[STradeWebSocket] Spot Occur Some Error \t%+v", err)
 					for _, datum := range err.Data {
 						logger.Error("[STradeWebSocket] Spot Error Data \t\t%+v", datum)

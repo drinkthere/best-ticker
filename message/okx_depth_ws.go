@@ -11,6 +11,7 @@ import (
 	"github.com/drinkthere/okx/models/market"
 	wsRequestPublic "github.com/drinkthere/okx/requests/ws/public"
 	"math/rand"
+	"strings"
 	"sync"
 	"time"
 )
@@ -120,6 +121,11 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 						}
 					}()
 				case err := <-errChan:
+					if strings.Contains(err.Msg, "i/o timeout") {
+						logger.Warn("[FDepthWebSocket] Error occurred %s, Will reconnect after 1 second.", err.Msg)
+						time.Sleep(time.Second * 1)
+						goto ReConnect
+					}
 					logger.Error("[FDepthWebSocket] Futures Occur Some Error %s %s %+v", localIP, currCh, err)
 				case s := <-successCh:
 					logger.Info("[FDepthWebSocket] Futures Receive Success: %s %s %+v", localIP, currCh, s)
@@ -279,6 +285,11 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 						}
 					}()
 				case err := <-errChan:
+					if strings.Contains(err.Msg, "i/o timeout") {
+						logger.Warn("[SDepthWebSocket] Error occurred %s, Will reconnect after 1 second.", err.Msg)
+						time.Sleep(time.Second * 1)
+						goto ReConnect
+					}
 					logger.Error("[SDepthWebSocket] Spot Occur Some Error %s %s %+v", localIP, currCh, err)
 				case s := <-successCh:
 					logger.Info("[SDepthWebSocket] Spot Receive Success: %s %s %+v", localIP, currCh, s)

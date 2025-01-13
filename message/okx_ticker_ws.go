@@ -8,6 +8,7 @@ import (
 	"github.com/drinkthere/okx/events"
 	"github.com/drinkthere/okx/events/public"
 	wsRequestPublic "github.com/drinkthere/okx/requests/ws/public"
+	"strings"
 	"time"
 )
 
@@ -64,6 +65,11 @@ func startOkxFuturesTickers(cfg *config.OkxConfig, globalContext *context.Global
 					channel, _ := sub.Arg.Get("channel")
 					logger.Info("[FTickerWebSocket] Futures Subscribe \t%s", channel)
 				case err := <-errChan:
+					if strings.Contains(err.Msg, "i/o timeout") {
+						logger.Warn("[FTickerWebSocket] Error occurred %s, Will reconnect after 1 second.", err.Msg)
+						time.Sleep(time.Second * 1)
+						goto ReConnect
+					}
 					logger.Error("[FTickerWebSocket] Futures Occur Some Error \t%+v", err)
 					for _, datum := range err.Data {
 						logger.Error("[FTickerWebSocket] Futures Error Data \t\t%+v", datum)
@@ -120,6 +126,11 @@ func startOkxSpotTickers(cfg *config.OkxConfig, globalContext *context.GlobalCon
 					channel, _ := sub.Arg.Get("channel")
 					logger.Info("[STickerWebSocket] Spot Subscribe \t%s", channel)
 				case err := <-errChan:
+					if strings.Contains(err.Msg, "i/o timeout") {
+						logger.Warn("[STickerWebSocket] Error occurred %s, Will reconnect after 1 second.", err.Msg)
+						time.Sleep(time.Second * 1)
+						goto ReConnect
+					}
 					logger.Error("[STickerWebSocket] Spot Occur Some Error \t%+v", err)
 					for _, datum := range err.Data {
 						logger.Error("[STickerWebSocket] Spot Error Data \t\t%+v", datum)
