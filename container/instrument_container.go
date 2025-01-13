@@ -24,12 +24,15 @@ type InstrumentComposite struct {
 	SwapTickMap map[string]*TickInfo // okx swap tick info
 }
 
-func (composite *InstrumentComposite) Init(instIDs []string, exchange config.Exchange) {
+func (composite *InstrumentComposite) Init(globalConfig *config.Config, exchange config.Exchange) {
 	composite.InstIDs = []string{}
 
-	for _, instID := range instIDs {
+	for _, instID := range globalConfig.InstIDs {
 		composite.InstIDs = append(composite.InstIDs, instID)
-		composite.SpotInstIDs = append(composite.SpotInstIDs, utils.ConvertToOkxSpotInstID(instID))
+	}
+
+	for _, instID := range globalConfig.SpotInstIDs {
+		composite.SpotInstIDs = append(composite.SpotInstIDs, instID)
 	}
 
 	if exchange == config.OkxExchange {

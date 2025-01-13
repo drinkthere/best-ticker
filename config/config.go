@@ -37,7 +37,8 @@ type Config struct {
 	OkxTickerZMQIPC     string
 	OkxOrderBookZMQIPC  string
 	BinanceTickerZMQIPC string
-	InstIDs             []string // 要套利的交易对
+	InstIDs             []string // 永续交易对
+	SpotInstIDs         []string // 现货交易对
 }
 
 func LoadConfig(filename string) *Config {

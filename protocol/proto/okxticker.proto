@@ -1,12 +1,20 @@
 syntax = "proto3";
 option go_package = "protocol/pb";
 message OkxTicker {
+  // Instrument ID: BTC-USDT-SWAP
   string instID = 1;
+  // Instrument Type: FUTURES / SPOT
   string instType = 2;
+  // Bid Price
   double bestBid = 3;
+  // Bid Quantity
   double bidSz = 4;
+  // Ask Price
   double bestAsk = 5;
+  // Ask Quantity
   double askSz = 6;
+  // Exchange Event Timestamp
   int64 eventTs = 7;
+  // Whether ticker is generated from trade event or not.
   bool isFromTrade = 8;
 }

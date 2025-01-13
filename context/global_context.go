@@ -38,7 +38,7 @@ func (context *GlobalContext) Init(globalConfig *config.Config) {
 
 func (context *GlobalContext) initInstrumentComposite(globalConfig *config.Config) {
 	instrumentComposite := container.InstrumentComposite{}
-	instrumentComposite.Init(globalConfig.InstIDs, globalConfig.Service)
+	instrumentComposite.Init(globalConfig, globalConfig.Service)
 	context.InstrumentComposite = instrumentComposite
 }
 
