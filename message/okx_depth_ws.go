@@ -167,7 +167,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 								} else {
 									if r.Int31n(10000) < 5 {
 										orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
-										logger.Info("[GatherFDepth] %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instType, channel, orderBook.BestBid(), orderBook.BestAsk())
+										logger.Info("[GatherFDepth] %s %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instID, instType, channel, orderBook.BestBid(), orderBook.BestAsk())
 									}
 									checkToUpdateTicker(localIP, isColo, channel, instID, instType, globalContext)
 								}
@@ -330,7 +330,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 								} else {
 									if r.Int31n(10000) < 5 {
 										orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
-										logger.Info("[GatherSDepth] %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instType, channel, orderBook.BestBid(), orderBook.BestAsk())
+										logger.Info("[GatherSDepth] %s %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instID, instType, channel, orderBook.BestBid(), orderBook.BestAsk())
 									}
 									checkToUpdateTicker(localIP, isColo, channel, instID, instType, globalContext)
 								}

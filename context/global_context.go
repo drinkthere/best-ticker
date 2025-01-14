@@ -52,11 +52,11 @@ func (context *GlobalContext) initTickerComposite() {
 
 func (context *GlobalContext) initOrderBookComposite(globalConfig *config.Config) {
 	futuresWrapper := &container.OrderBookCompositeWrapper{}
-	futuresWrapper.Init(config.OkxExchange, config.FuturesInstrument, globalConfig.Sources)
+	futuresWrapper.Init(config.OkxExchange, config.FuturesInstrument, globalConfig.Sources, context.InstrumentComposite.InstIDs)
 	context.OkxFuturesOrderBookCompositeWrapper = futuresWrapper
 
 	spotWrapper := &container.OrderBookCompositeWrapper{}
-	spotWrapper.Init(config.OkxExchange, config.SpotInstrument, globalConfig.Sources)
+	spotWrapper.Init(config.OkxExchange, config.SpotInstrument, globalConfig.Sources, context.InstrumentComposite.SpotInstIDs)
 	context.OkxSpotOrderBookCompositeWrapper = spotWrapper
 
 	futuresFastWrapper := &container.FastestChannelSourceWrapper{}

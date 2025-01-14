@@ -58,7 +58,7 @@ func StartGatherOkxSpotTicker(tickChan chan *public.Tickers, globalContext *cont
 	r := rand.New(rand.NewSource(2))
 	go func() {
 		defer func() {
-			logger.Warn("[GatherFTicker] Okx Spot Ticker Gather Exited.")
+			logger.Warn("[GatherSTicker] Okx Spot Ticker Gather Exited.")
 		}()
 		for {
 			s := <-tickChan
