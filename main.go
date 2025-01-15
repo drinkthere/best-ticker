@@ -3,6 +3,7 @@ package main
 import (
 	"best-ticker/config"
 	"best-ticker/context"
+	"best-ticker/watchdog"
 	"fmt"
 	_ "net/http"
 	_ "net/http/pprof"
@@ -52,6 +53,7 @@ func main() {
 	// 开始监听orderBook消息
 	startDepthMessage()
 
+	watchdog.StartPprofNet(&globalConfig)
 	// 阻塞主进程
 	for {
 		time.Sleep(24 * time.Hour)

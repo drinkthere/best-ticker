@@ -39,6 +39,7 @@ type Config struct {
 	BinanceTickerZMQIPC string
 	InstIDs             []string // 永续交易对
 	SpotInstIDs         []string // 现货交易对
+	PprofListenAddress  string   // pprof
 }
 
 func LoadConfig(filename string) *Config {
