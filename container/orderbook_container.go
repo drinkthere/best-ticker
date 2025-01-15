@@ -307,22 +307,14 @@ type OrderBookComposite struct {
 	rwLock        *sync.RWMutex
 }
 
-func NewOrderBookComposite(exchange config.Exchange, instType config.InstrumentType, channel config.Channel, instIDs []string) *OrderBookComposite {
-	composite := &OrderBookComposite{
+func NewOrderBookComposite(exchange config.Exchange, instType config.InstrumentType, channel config.Channel) *OrderBookComposite {
+	return &OrderBookComposite{
 		Exchange:      exchange,
 		InstType:      instType,
 		Channel:       channel,
 		OrderBooksMap: map[string]OrderBook{},
 		rwLock:        &sync.RWMutex{},
 	}
-
-	if len(instIDs) > 0 {
-		for _, instID := range instIDs {
-			ob := NewOrderBook()
-			composite.OrderBooksMap[instID] = *ob
-		}
-	}
-	return composite
 }
 
 func (composite *OrderBookComposite) GetOrderBook(instID string) *OrderBook {
@@ -365,7 +357,7 @@ type OrderBookCompositeWrapper struct {
 	rwLock                *sync.RWMutex
 }
 
-func (ocw *OrderBookCompositeWrapper) Init(exchange config.Exchange, instType config.InstrumentType, sources []config.Source, instIDs []string) {
+func (ocw *OrderBookCompositeWrapper) Init(exchange config.Exchange, instType config.InstrumentType, sources []config.Source) {
 	ocw.Exchange = exchange
 	ocw.InstType = instType
 	ocw.OrderBookCompositeMap = map[string]*OrderBookComposite{}
@@ -376,7 +368,7 @@ func (ocw *OrderBookCompositeWrapper) Init(exchange config.Exchange, instType co
 	for _, source := range sources {
 		for _, channel := range source.Channels {
 			key := genOrderBookCompositeKey(source.IP, source.Colo, channel)
-			ocw.OrderBookCompositeMap[key] = NewOrderBookComposite(exchange, instType, channel, instIDs)
+			ocw.OrderBookCompositeMap[key] = NewOrderBookComposite(exchange, instType, channel)
 		}
 	}
 }
