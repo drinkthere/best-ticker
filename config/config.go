@@ -20,7 +20,7 @@ type BinanceConfig struct {
 type Source struct {
 	Exchange      Exchange      // 交易所
 	IP            string        // local IP to connect to OKx websocket
-	Colo          bool          // is co-location with Okx
+	Colo          string        // 为空就不用colo，否则指定可用区：zoneA，zoneC或zoneD
 	Channels      []Channel     // 改IP下需要订阅的channel
 	OkxConfig     OkxConfig     // Okx配置
 	BinanceConfig BinanceConfig // Binance配置

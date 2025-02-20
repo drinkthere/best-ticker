@@ -290,7 +290,7 @@ func (ob *OrderBook) LimitDepth(limit int) *pb.OkxOrderBook {
 
 type OrderBookMsg struct {
 	IP           string
-	Colo         bool
+	Colo         string
 	Channel      config.Channel
 	Exchange     config.Exchange
 	InstID       string
@@ -373,7 +373,7 @@ func (ocw *OrderBookCompositeWrapper) Init(exchange config.Exchange, instType co
 	}
 }
 
-func (ocw *OrderBookCompositeWrapper) GetOrderBookComposite(ip string, colo bool, channel config.Channel) *OrderBookComposite {
+func (ocw *OrderBookCompositeWrapper) GetOrderBookComposite(ip string, colo string, channel config.Channel) *OrderBookComposite {
 	key := genOrderBookCompositeKey(ip, colo, channel)
 	ocw.rwLock.RLock()
 	obc, has := ocw.OrderBookCompositeMap[key]
@@ -386,13 +386,13 @@ func (ocw *OrderBookCompositeWrapper) GetOrderBookComposite(ip string, colo bool
 	}
 }
 
-func genOrderBookCompositeKey(ip string, colo bool, channel config.Channel) string {
-	return fmt.Sprintf("%s_%s_%s", ip, strconv.FormatBool(colo), channel)
+func genOrderBookCompositeKey(ip string, colo string, channel config.Channel) string {
+	return fmt.Sprintf("%s_%s_%s", ip, colo, channel)
 }
 
 type FastestChannelSource struct {
 	IP       string
-	Colo     bool
+	Colo     string
 	UpdateTs int64
 }
 
@@ -443,23 +443,23 @@ func (f *FastestChannelSourceWrapper) GetFastestOrderBookSourceNoLock(channel co
 		return FastestChannelSource{}
 	}
 }
-func (f *FastestChannelSourceWrapper) UpdateFastestOrderBookSource(channel config.Channel, instID string, ip string, isColo bool, updateTs int64) {
+func (f *FastestChannelSourceWrapper) UpdateFastestOrderBookSource(channel config.Channel, instID string, ip string, colo string, updateTs int64) {
 	key := genFastestOrderBookKey(channel, instID)
 	f.RwLock.Lock()
 	defer f.RwLock.Unlock()
 	f.FastestMap[key] = FastestChannelSource{
 		IP:       ip,
-		Colo:     isColo,
+		Colo:     colo,
 		UpdateTs: updateTs,
 	}
 }
 
-func (f *FastestChannelSourceWrapper) UpdateFastestOrderBookSourceNoLock(channel config.Channel, instID string, ip string, isColo bool, updateTs int64) {
+func (f *FastestChannelSourceWrapper) UpdateFastestOrderBookSourceNoLock(channel config.Channel, instID string, ip string, colo string, updateTs int64) {
 	key := genFastestOrderBookKey(channel, instID)
 
 	f.FastestMap[key] = FastestChannelSource{
 		IP:       ip,
-		Colo:     isColo,
+		Colo:     colo,
 		UpdateTs: updateTs,
 	}
 }

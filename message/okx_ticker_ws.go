@@ -17,15 +17,15 @@ func StartOkxTickerWs(cfg *config.Config, globalContext *context.GlobalContext,
 	for _, source := range cfg.Sources {
 		// 循环不同的IP，监听对应的tickers
 		startOkxFuturesTickers(&source.OkxConfig, globalContext, source.Colo, source.IP, okxFuturesTickerChan)
-		logger.Info("[FTickerWebSocket] Start Listen Okx Futures Tickers, isColo:%t, ip:%s", source.Colo, source.IP)
+		logger.Info("[FTickerWebSocket] Start Listen Okx Futures Tickers, colo:%s, ip:%s", source.Colo, source.IP)
 		startOkxSpotTickers(&source.OkxConfig, globalContext, source.Colo, source.IP, okxSpotTickerChan)
-		logger.Info("[STickerWebSocket] Start Listen Okx Spot Tickers, isColo:%t, ip:%s", source.Colo, source.IP)
+		logger.Info("[STickerWebSocket] Start Listen Okx Spot Tickers, colo:%s, ip:%s", source.Colo, source.IP)
 		time.Sleep(1 * time.Second)
 	}
 }
 
 func startOkxFuturesTickers(cfg *config.OkxConfig, globalContext *context.GlobalContext,
-	isColo bool, localIP string, tickerChan chan *public.Tickers) {
+	colo string, localIP string, tickerChan chan *public.Tickers) {
 
 	go func() {
 		defer func() {
@@ -40,7 +40,7 @@ func startOkxFuturesTickers(cfg *config.OkxConfig, globalContext *context.Global
 			successCh := make(chan *events.Success)
 
 			var okxClient = client.OkxClient{}
-			okxClient.Init(cfg, isColo, localIP)
+			okxClient.Init(cfg, colo, localIP)
 
 			okxClient.Client.Ws.SetChannels(errChan, subChan, uSubChan, loginCh, successCh)
 			for _, instID := range globalContext.InstrumentComposite.InstIDs {
@@ -89,7 +89,7 @@ func startOkxFuturesTickers(cfg *config.OkxConfig, globalContext *context.Global
 }
 
 func startOkxSpotTickers(cfg *config.OkxConfig, globalContext *context.GlobalContext,
-	isColo bool, localIP string, tickerChan chan *public.Tickers) {
+	colo string, localIP string, tickerChan chan *public.Tickers) {
 
 	go func() {
 		defer func() {
@@ -104,7 +104,7 @@ func startOkxSpotTickers(cfg *config.OkxConfig, globalContext *context.GlobalCon
 			successCh := make(chan *events.Success)
 
 			var okxClient = client.OkxClient{}
-			okxClient.Init(cfg, isColo, localIP)
+			okxClient.Init(cfg, colo, localIP)
 			okxClient.Client.Ws.SetChannels(errChan, subChan, uSubChan, loginCh, successCh)
 			for _, instID := range globalContext.InstrumentComposite.SpotInstIDs {
 				err := okxClient.Client.Ws.Public.Tickers(wsRequestPublic.Tickers{

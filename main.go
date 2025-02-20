@@ -25,7 +25,7 @@ func ExitProcess() {
 }
 
 func main() {
-	runtime.GOMAXPROCS(1)
+	runtime.GOMAXPROCS(3)
 	// 参数判断
 	if len(os.Args) < 2 {
 		fmt.Printf("Usage: %s config_file\n", os.Args[0])

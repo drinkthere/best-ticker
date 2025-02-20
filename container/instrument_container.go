@@ -37,7 +37,7 @@ func (composite *InstrumentComposite) Init(globalConfig *config.Config, exchange
 
 	if exchange == config.OkxExchange {
 		var okxClient = client.OkxClient{}
-		okxClient.Init(&config.OkxConfig{}, false, "")
+		okxClient.Init(&config.OkxConfig{}, "", "")
 		composite.SpotTickMap = getTickMap(&okxClient, composite.SpotInstIDs, okx.SpotInstrument)
 		composite.SwapTickMap = getTickMap(&okxClient, composite.InstIDs, okx.SwapInstrument)
 	} else {

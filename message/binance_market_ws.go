@@ -37,7 +37,7 @@ func (ws *BinanceMarketWebSocket) Init(
 	ws.futuresTickerChan = futuresTickerChan
 }
 
-func (ws *BinanceMarketWebSocket) StartBinanceMarketWs(globalContext *context.GlobalContext, colo bool, ip string) {
+func (ws *BinanceMarketWebSocket) StartBinanceMarketWs(globalContext *context.GlobalContext, colo string, ip string) {
 
 	batchSize := 30
 	instIDs := globalContext.InstrumentComposite.InstIDs
@@ -147,7 +147,7 @@ func (ws *innerBinanceFuturesWebSocket) handleError(err error) {
 	ws.isStopped = true
 }
 
-func (ws *innerBinanceFuturesWebSocket) subscribeBookTickers(ip string, colo bool) {
+func (ws *innerBinanceFuturesWebSocket) subscribeBookTickers(ip string, colo string) {
 
 	go func() {
 		defer func() {
@@ -158,7 +158,7 @@ func (ws *innerBinanceFuturesWebSocket) subscribeBookTickers(ip string, colo boo
 				time.Sleep(time.Second * 1)
 				continue
 			}
-			if colo {
+			if colo != "" {
 				binanceFutures.UseIntranet = true
 			} else {
 				binanceFutures.UseIntranet = false

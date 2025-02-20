@@ -15,8 +15,8 @@ func StartZmq() {
 		logger.Info("Start Okx Ticker ZMQ")
 		startOkxTickerZmq(&globalConfig, &globalContext)
 
-		logger.Info("Start Okx OrderBook ZMQ")
-		startOkxOrderBookZmq(&globalConfig, &globalContext)
+		//logger.Info("Start Okx OrderBook ZMQ")
+		//startOkxOrderBookZmq(&globalConfig, &globalContext)
 	} else if globalConfig.Service == config.BinanceExchange {
 		logger.Info("Start Binance Ticker ZMQ")
 		startBinanceTickerZmq(&globalConfig, &globalContext)

@@ -7,8 +7,8 @@ github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/dictxwang/go-binance v0.1.16 h1:Czypy53SXqJI1RLF9cAj+fCF3I154gzKH0QLdgGKLYc=
 github.com/dictxwang/go-binance v0.1.16/go.mod h1:nTH9jILAgrPqXrjQAYelOVk93zLG8A5troSiG0JbTmo=
-github.com/drinkthere/okx v1.0.29 h1:Tgx3EjqwCGwPv7mPM8LQeugOVf728ex/1NTojMLhLTk=
-github.com/drinkthere/okx v1.0.29/go.mod h1:W6kGifne6ioS505dnFLWnYfY8lwfhv1ndclIfCdnTFI=
+github.com/drinkthere/okx v1.0.37 h1:qc1juuaqfqUK+54SMdIlX+EfpEBxzhgnlw2jX11dnbQ=
+github.com/drinkthere/okx v1.0.37/go.mod h1:W6kGifne6ioS505dnFLWnYfY8lwfhv1ndclIfCdnTFI=
 github.com/google/go-cmp v0.5.5 h1:Khx7svrCpmxxtHBq5j2mp/xVjsi8hQMfNLvJFAlrGgU=
 github.com/google/go-cmp v0.5.5/go.mod h1:v8dTdLbMG2kIc/vJvl+f65V22dbkXbowE6jgT/gNBxE=
 github.com/google/gofuzz v1.0.0/go.mod h1:dBl0BpW6vV/+mYPU4Po3pmUjxk6FQPldtuIdl/M65Eg=

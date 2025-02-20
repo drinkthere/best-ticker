@@ -4,7 +4,7 @@ go 1.22.0
 
 require (
 	github.com/dictxwang/go-binance v0.1.16
-	github.com/drinkthere/okx v1.0.29
+	github.com/drinkthere/okx v1.0.37
 	github.com/lestrrat-go/file-rotatelogs v2.4.0+incompatible
 	github.com/pebbe/zmq4 v1.2.11
 	go.uber.org/zap v1.27.0

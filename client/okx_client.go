@@ -12,10 +12,12 @@ type OkxClient struct {
 	Client *api.Client
 }
 
-func (okxClient *OkxClient) Init(cfg *config.OkxConfig, isColo bool, localIP string) bool {
+func (okxClient *OkxClient) Init(cfg *config.OkxConfig, colo string, localIP string) bool {
 	var dest okx.Destination
-	if isColo {
+	if colo == "zoneB" {
 		dest = okx.ColoServer
+	} else if colo == "zoneD" {
+		dest = okx.ColoDServer
 	} else {
 		dest = okx.NormalServer
 	}

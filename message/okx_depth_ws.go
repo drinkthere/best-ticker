@@ -28,7 +28,7 @@ func StartOkxDepthWs(cfg *config.Config, globalContext *context.GlobalContext) {
 }
 
 func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
-	isColo bool, localIP string, channel config.Channel) {
+	colo string, localIP string, channel config.Channel) {
 
 	r := rand.New(rand.NewSource(2))
 	depthChan := make(chan *public.OrderBook)
@@ -39,7 +39,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 			logger.Warn("[FDepthWebSocket] Okx Futures Channel Listening Exited.")
 		}()
 
-		logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel, isColo:%t, ip:%s, channel=%s", isColo, localIP, channel)
+		logger.Info("[FDepthWebSocket] Start Listen Okx Futures Depth Channel, colo:%s, ip:%s, channel=%s", colo, localIP, channel)
 		for {
 		ReConnect:
 			errChan := make(chan *events.Error)
@@ -49,7 +49,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 			successCh := make(chan *events.Success)
 
 			var okxClient = client.OkxClient{}
-			okxClient.Init(cfg, isColo, localIP)
+			okxClient.Init(cfg, colo, localIP)
 			if channel == config.BooksL2TbtChannel || channel == config.Books50L2TbtChannel {
 				err := okxClient.Client.Ws.Private.Connect(true)
 				if err != nil {
@@ -156,7 +156,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 								seqIDMap[instID] = currSeqID
 								mu.Unlock()
 
-								obMsg := convertToObMsg(localIP, isColo, channel, instID, instType, action, b)
+								obMsg := convertToObMsg(localIP, colo, channel, instID, instType, action, b)
 								result := updateOrderBook(obMsg, globalContext)
 								if !result {
 									logger.Warn("%s %s %s %s checksum=%d", localIP, instID, currCh, instType, obMsg.OrderBookMsg.Checksum)
@@ -166,10 +166,10 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 									})
 								} else {
 									if r.Int31n(10000) < 5 {
-										orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
+										orderBook := getOrderBook(localIP, colo, channel, instID, instType, globalContext)
 										logger.Info("[GatherFDepth] %s %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instID, instType, channel, orderBook.BestBid(), orderBook.BestAsk())
 									}
-									checkToUpdateTicker(localIP, isColo, channel, instID, instType, globalContext)
+									checkToUpdateTicker(localIP, colo, channel, instID, instType, globalContext)
 								}
 
 							} else {
@@ -198,7 +198,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 }
 
 func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalContext,
-	isColo bool, localIP string, channel config.Channel) {
+	colo string, localIP string, channel config.Channel) {
 
 	r := rand.New(rand.NewSource(2))
 	depthChan := make(chan *public.OrderBook)
@@ -209,7 +209,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 			logger.Warn("[SDepthWebSocket] Okx Spot Depth Listening Exited.")
 		}()
 
-		logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel, isColo:%t, ip:%s, channel=%s", isColo, localIP, channel)
+		logger.Info("[SDepthWebSocket] Start Listen Okx Spot Depth Channel, colo:%s, ip:%s, channel=%s", colo, localIP, channel)
 
 		for {
 		ReConnect:
@@ -220,7 +220,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 			successCh := make(chan *events.Success)
 
 			var okxClient = client.OkxClient{}
-			okxClient.Init(cfg, isColo, localIP)
+			okxClient.Init(cfg, colo, localIP)
 			if channel == config.BooksL2TbtChannel || channel == config.Books50L2TbtChannel {
 				err := okxClient.Client.Ws.Private.Login()
 				if err != nil {
@@ -319,7 +319,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 								seqIDMap[instID] = currSeqID
 								mu.Unlock()
 
-								obMsg := convertToObMsg(localIP, isColo, channel, instID, instType, action, b)
+								obMsg := convertToObMsg(localIP, colo, channel, instID, instType, action, b)
 								result := updateOrderBook(obMsg, globalContext)
 								if !result {
 									logger.Warn("%s %s %s %s checksum=%d", localIP, instID, currCh, instType, obMsg.OrderBookMsg.Checksum)
@@ -329,10 +329,10 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 									})
 								} else {
 									if r.Int31n(10000) < 5 {
-										orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
+										orderBook := getOrderBook(localIP, colo, channel, instID, instType, globalContext)
 										logger.Info("[GatherSDepth] %s %s %s orderBooks.bids is %+v, orderBooks.asks is %+v", instID, instType, channel, orderBook.BestBid(), orderBook.BestAsk())
 									}
-									checkToUpdateTicker(localIP, isColo, channel, instID, instType, globalContext)
+									checkToUpdateTicker(localIP, colo, channel, instID, instType, globalContext)
 								}
 							} else {
 								logger.Warn("%d!=%d", seqIDMap[instID], b.PrevSeqID)
@@ -358,11 +358,11 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 	}()
 }
 
-func checkToUpdateTicker(localIP string, isColo bool, channel config.Channel, instID string, instType config.InstrumentType, globalContext *context.GlobalContext) {
+func checkToUpdateTicker(localIP string, colo string, channel config.Channel, instID string, instType config.InstrumentType, globalContext *context.GlobalContext) {
 	// b.TS > ticker.TS && ticker changed, update ticker
 	ticker := getTicker(instID, instType, globalContext)
 	//logger.Info("instID is %s, instType is %s, ticker is %+v", instID, instType, ticker)
-	orderBook := getOrderBook(localIP, isColo, channel, instID, instType, globalContext)
+	orderBook := getOrderBook(localIP, colo, channel, instID, instType, globalContext)
 	if orderBook == nil || ticker == nil {
 		return
 	}
@@ -383,7 +383,7 @@ func checkToUpdateTicker(localIP string, isColo bool, channel config.Channel, in
 	}
 }
 
-func convertToObMsg(ip string, colo bool, channel config.Channel, instID string, instType config.InstrumentType,
+func convertToObMsg(ip string, colo string, channel config.Channel, instID string, instType config.InstrumentType,
 	action string, msg *market.OrderBookWs) container.OrderBookMsg {
 	return container.OrderBookMsg{
 		IP:           ip,
@@ -432,14 +432,14 @@ func updateTicker(instType config.InstrumentType, tickerMsg container.TickerWrap
 	return result
 }
 
-func getOrderBook(localIP string, isColo bool, channel config.Channel, instID string, instType config.InstrumentType, globalContext *context.GlobalContext) *container.OrderBook {
+func getOrderBook(localIP string, colo string, channel config.Channel, instID string, instType config.InstrumentType, globalContext *context.GlobalContext) *container.OrderBook {
 
 	var orderBook *container.OrderBook
 	if instType == config.FuturesInstrument {
-		futuresOrderBookComposite := globalContext.OkxFuturesOrderBookCompositeWrapper.GetOrderBookComposite(localIP, isColo, channel)
+		futuresOrderBookComposite := globalContext.OkxFuturesOrderBookCompositeWrapper.GetOrderBookComposite(localIP, colo, channel)
 		orderBook = futuresOrderBookComposite.GetOrderBook(instID)
 	} else {
-		spotOrderBookComposite := globalContext.OkxSpotOrderBookCompositeWrapper.GetOrderBookComposite(localIP, isColo, channel)
+		spotOrderBookComposite := globalContext.OkxSpotOrderBookCompositeWrapper.GetOrderBookComposite(localIP, colo, channel)
 		orderBook = spotOrderBookComposite.GetOrderBook(instID)
 	}
 	return orderBook
@@ -455,14 +455,14 @@ func updateOrderBook(obMsg container.OrderBookMsg, globalContext *context.Global
 			msgUpdateTime := time.Time(obMsg.OrderBookMsg.TS).UnixMilli()
 			//logger.Info("%d %d %t", time.Time(obMsg.OrderBookMsg.TS).UnixMilli(), updateTime, time.Time(obMsg.OrderBookMsg.TS).UnixMilli() > updateTime)
 			if msgUpdateTime > updateTime {
-				// 更新当前channel最快的信息
-				globalContext.OkxFuturesFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo, msgUpdateTime)
-
-				globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
-					Channel:  obMsg.Channel,
-					InstID:   obMsg.InstID,
-					InstType: obMsg.InstType,
-				}
+				//// 更新当前channel最快的信息
+				//globalContext.OkxFuturesFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo, msgUpdateTime)
+				//
+				//globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
+				//	Channel:  obMsg.Channel,
+				//	InstID:   obMsg.InstID,
+				//	InstType: obMsg.InstType,
+				//}
 			}
 			return true
 		}
@@ -475,14 +475,14 @@ func updateOrderBook(obMsg container.OrderBookMsg, globalContext *context.Global
 			updateTime := source.UpdateTs
 			//logger.Info("%d %d %t", time.Time(obMsg.OrderBookMsg.TS).UnixMilli(), updateTime, time.Time(obMsg.OrderBookMsg.TS).UnixMilli() > updateTime)
 			if time.Time(obMsg.OrderBookMsg.TS).UnixMilli() > updateTime {
-				// 更新当前channel最快的信息
-				globalContext.OkxSpotFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo, time.Time(obMsg.OrderBookMsg.TS).UnixMilli())
-
-				globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
-					Channel:  obMsg.Channel,
-					InstID:   obMsg.InstID,
-					InstType: obMsg.InstType,
-				}
+				//// 更新当前channel最快的信息
+				//globalContext.OkxSpotFastestSourceWrapper.UpdateFastestOrderBookSource(obMsg.Channel, obMsg.InstID, obMsg.IP, obMsg.Colo, time.Time(obMsg.OrderBookMsg.TS).UnixMilli())
+				//
+				//globalContext.OrderBookUpdateChan <- &container.OrderBookUpdate{
+				//	Channel:  obMsg.Channel,
+				//	InstID:   obMsg.InstID,
+				//	InstType: obMsg.InstType,
+				//}
 			}
 			return true
 		}
