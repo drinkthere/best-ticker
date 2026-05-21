@@ -65,6 +65,8 @@ func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool
 	ob.handleDeltas(bids, asks)
 	checkSum := bookChange.Checksum
 	if checkSum != 0 {
+		// OKX is deprecating checksum for order book channels. Keep validating it
+		// while it is still emitted, but sequence IDs are the primary continuity check.
 		maxItems := 25
 		var payloadArray []string
 		for i := 0; i < maxItems; i++ {
@@ -82,7 +84,7 @@ func (ob *OrderBook) handleOrderBookMessage(bookChange *market.OrderBookWs) bool
 		localChecksum := crc32.ChecksumIEEE([]byte(payload))
 
 		if int32(localChecksum) != checkSum {
-			logger.Warn("[Depth Update] Checksum does not match. checksum=%d", checkSum)
+			logger.Warn("[Depth Update] Legacy checksum does not match. checksum=%d", checkSum)
 			return false
 		}
 	}
@@ -411,7 +413,7 @@ func (f *FastestChannelSourceWrapper) Init(exchange config.Exchange, instType co
 
 	f.RwLock.RLock()
 	defer f.RwLock.RUnlock()
-	channels := []config.Channel{config.BboTbtChannel, config.BooksL2TbtChannel, config.Books50L2TbtChannel}
+	channels := []config.Channel{config.BboTbtChannel, config.BooksChannel, config.BooksL2TbtChannel, config.Books50L2TbtChannel}
 	for _, channel := range channels {
 		for _, instID := range instIDs {
 			key := genFastestOrderBookKey(channel, instID)

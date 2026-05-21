@@ -16,6 +16,7 @@ const (
 	FuturesInstrument = InstrumentType("FUTURES")
 
 	NoChannel           = Channel("tickers")        // for statistic
+	BooksChannel        = Channel("books")          // 400 depth levels
 	Books50L2TbtChannel = Channel("books50-l2-tbt") // tick-by-tick 50 depth levels, 10ms
 	BooksL2TbtChannel   = Channel("books-l2-tbt")   // tick-by-tick 400 depth levels, 10ms,
 	BboTbtChannel       = Channel("bbo-tbt")        // tick-by-tick 1 depth level, 10ms

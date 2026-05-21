@@ -74,7 +74,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 			for _, instID := range globalContext.InstrumentComposite.InstIDs {
 				// 默认第一条全量消息（snapshort）的seqID是-1
 				mu.Lock()
-				seqIDMap[instID] = -1
+				seqIDMap[instID] = orderBookSeqUninitialized
 				mu.Unlock()
 				err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
 					InstID:  instID,
@@ -107,7 +107,7 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 
 						// 重置seqID
 						mu.Lock()
-						seqIDMap[instID] = -1
+						seqIDMap[instID] = orderBookSeqUninitialized
 						mu.Unlock()
 
 						err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
@@ -141,19 +141,17 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 						mu.RUnlock()
 
 						// 如果是取消订阅中，则该消息已经无用，直接跳过
-						if currSeqID != -2 {
+						if currSeqID != orderBookSeqResubscribing {
 							action := s.Action
 							instType := config.FuturesInstrument
 
-							// bbo-tbt 没有seqID，无需校验; 否则需要确保上一条消息的seqID = 本条消息的prevSeqId
-							if currSeqID == b.PrevSeqID || channel == config.BboTbtChannel {
+							// bbo-tbt has no prevSeqId, so continuity can only be checked on book channels.
+							nextSeqID, seqOK := advanceOrderBookSeqID(channel, currSeqID, b)
+							if seqOK {
 
-								// 更新sqlIDMap
-								if b.SeqID != 0 {
-									currSeqID = b.SeqID
-								}
+								// 更新seqIDMap
 								mu.Lock()
-								seqIDMap[instID] = currSeqID
+								seqIDMap[instID] = nextSeqID
 								mu.Unlock()
 
 								obMsg := convertToObMsg(localIP, colo, channel, instID, instType, action, b)
@@ -173,9 +171,9 @@ func startOkxFuturesDepths(cfg *config.OkxConfig, globalContext *context.GlobalC
 								}
 
 							} else {
-								logger.Warn("%d!=%d", seqIDMap[instID], b.PrevSeqID)
+								logger.Warn("[FDepthWebSocket] Sequence mismatch %s %s currSeqID=%d prevSeqId=%d seqId=%d", localIP, instID, currSeqID, b.PrevSeqID, b.SeqID)
 								mu.Lock()
-								seqIDMap[instID] = -2
+								seqIDMap[instID] = orderBookSeqResubscribing
 								mu.Unlock()
 								okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
 									InstID:  instID,
@@ -236,7 +234,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 			for _, instID := range globalContext.InstrumentComposite.SpotInstIDs {
 				// 默认第一条全量消息（snapshort）的seqID是-1
 				mu.Lock()
-				seqIDMap[instID] = -1
+				seqIDMap[instID] = orderBookSeqUninitialized
 				mu.Unlock()
 				err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
 					InstID:  instID,
@@ -271,7 +269,7 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 
 						// 重置seqID
 						mu.Lock()
-						seqIDMap[instID] = -1
+						seqIDMap[instID] = orderBookSeqUninitialized
 						mu.Unlock()
 
 						err := okxClient.Client.Ws.Public.OrderBook(wsRequestPublic.OrderBook{
@@ -305,18 +303,16 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 						mu.RUnlock()
 
 						// 如果是取消订阅中，则该消息已经无用，直接跳过
-						if currSeqID != -2 {
+						if currSeqID != orderBookSeqResubscribing {
 							action := s.Action
 							instType := config.SpotInstrument
 
-							// bbo-tbt 没有seqID，无需校验; 否则需要确保上一条消息的seqID = 本条消息的prevSeqId
-							if currSeqID == b.PrevSeqID || channel == config.BboTbtChannel {
-								// 更新sqlIDMap
-								if b.SeqID != 0 {
-									currSeqID = b.SeqID
-								}
+							// bbo-tbt has no prevSeqId, so continuity can only be checked on book channels.
+							nextSeqID, seqOK := advanceOrderBookSeqID(channel, currSeqID, b)
+							if seqOK {
+								// 更新seqIDMap
 								mu.Lock()
-								seqIDMap[instID] = currSeqID
+								seqIDMap[instID] = nextSeqID
 								mu.Unlock()
 
 								obMsg := convertToObMsg(localIP, colo, channel, instID, instType, action, b)
@@ -335,9 +331,9 @@ func startOkxSpotDepths(cfg *config.OkxConfig, globalContext *context.GlobalCont
 									checkToUpdateTicker(localIP, colo, channel, instID, instType, globalContext)
 								}
 							} else {
-								logger.Warn("%d!=%d", seqIDMap[instID], b.PrevSeqID)
+								logger.Warn("[SDepthWebSocket] Sequence mismatch %s %s currSeqID=%d prevSeqId=%d seqId=%d", localIP, instID, currSeqID, b.PrevSeqID, b.SeqID)
 								mu.Lock()
-								seqIDMap[instID] = -2
+								seqIDMap[instID] = orderBookSeqResubscribing
 								mu.Unlock()
 								okxClient.Client.Ws.Public.UOrderBook(wsRequestPublic.OrderBook{
 									InstID:  instID,
